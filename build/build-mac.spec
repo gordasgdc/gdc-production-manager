@@ -7,6 +7,11 @@ import os
 block_cipher = None
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(SPEC)), ".."))
 
+# Fall back to PyInstaller's default icon if icon.icns wasn't committed,
+# so a missing icon can never hard-fail the whole build.
+_icon_path = os.path.join(ROOT, "icon", "icon.icns")
+ICON = _icon_path if os.path.isfile(_icon_path) else None
+
 a = Analysis(
     [os.path.join(ROOT, "backend", "app.py")],
     pathex=[os.path.join(ROOT, "backend")],
@@ -38,7 +43,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
-    icon=os.path.join(ROOT, "icon", "icon.icns"),
+    icon=ICON,
 )
 
 coll = COLLECT(
@@ -55,7 +60,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name="GDCProductionManager.app",
-    icon=os.path.join(ROOT, "icon", "icon.icns"),
+    icon=ICON,
     bundle_identifier="com.gordasgdc.productionmanager",
     info_plist={
         "CFBundleName": "GDC Production Manager",

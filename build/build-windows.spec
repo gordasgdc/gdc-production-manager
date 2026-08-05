@@ -7,6 +7,9 @@ import os
 block_cipher = None
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(SPEC)), ".."))
 
+_icon_path = os.path.join(ROOT, "icon", "icon.ico")
+ICON = _icon_path if os.path.isfile(_icon_path) else None
+
 a = Analysis(
     [os.path.join(ROOT, "backend", "app.py")],
     pathex=[os.path.join(ROOT, "backend")],
@@ -42,5 +45,5 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
-    icon=os.path.join(ROOT, "icon", "icon.ico"),
+    icon=ICON,
 )
