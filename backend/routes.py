@@ -6,7 +6,7 @@ import os
 import uuid
 import copy
 from datetime import datetime, date, timedelta
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, send_from_directory, Response
 from werkzeug.utils import secure_filename
 
 from models import (
@@ -870,6 +870,7 @@ def create_checklist_template():
         user_id=user.id,
         name=name,
         checklist_type=data.get("checklist_type") if data.get("checklist_type") in CHECKLIST_TYPES else "general",
+        project_type=data.get("project_type") if data.get("project_type") in PROJECT_TYPES else None,
         items=[str(i).strip() for i in items if str(i).strip()],
     )
     db.session.add(template)
@@ -890,6 +891,8 @@ def update_checklist_template(template_id):
         template.name = data["name"].strip()
     if "checklist_type" in data and data["checklist_type"] in CHECKLIST_TYPES:
         template.checklist_type = data["checklist_type"]
+    if "project_type" in data:
+        template.project_type = data["project_type"] if data["project_type"] in PROJECT_TYPES else None
     if "items" in data and isinstance(data["items"], list):
         template.items = [str(i).strip() for i in data["items"] if str(i).strip()]
 
@@ -963,6 +966,22 @@ def create_checklist(project_id):
     db.session.add(checklist)
     db.session.commit()
     return jsonify(checklist.to_dict()), 201
+
+
+@api_bp.route("/api/checklists/<int:checklist_id>", methods=["GET"])
+@login_required
+def get_checklist(checklist_id):
+    user = current_user()
+    checklist = (
+        Checklist.query.join(Project, Checklist.project_id == Project.id)
+        .filter(Checklist.id == checklist_id, Project.user_id == user.id)
+        .first()
+    )
+    if not checklist:
+        return jsonify({"error": "not_found"}), 404
+    data = checklist.to_dict()
+    data["project_title"] = checklist.project.title
+    return jsonify(data)
 
 
 @api_bp.route("/api/checklists/<int:checklist_id>", methods=["PUT"])
@@ -1133,6 +1152,94 @@ def upcoming_reminders():
         .all()
     )
     return jsonify([r.to_dict() for r in reminders])
+
+
+def _ics_escape(text: str) -> str:
+    text = text or ""
+    return (
+        text.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
+
+
+def _ics_event(uid, summary, description, start_dt, end_dt, all_day=False):
+    lines = ["BEGIN:VEVENT", f"UID:{uid}"]
+    if all_day:
+        lines.append(f"DTSTART;VALUE=DATE:{start_dt.strftime('%Y%m%d')}")
+        lines.append(f"DTEND;VALUE=DATE:{end_dt.strftime('%Y%m%d')}")
+    else:
+        lines.append(f"DTSTART:{start_dt.strftime('%Y%m%dT%H%M%S')}")
+        lines.append(f"DTEND:{end_dt.strftime('%Y%m%dT%H%M%S')}")
+    lines.append(f"SUMMARY:{_ics_escape(summary)}")
+    if description:
+        lines.append(f"DESCRIPTION:{_ics_escape(description)}")
+    lines.append("END:VEVENT")
+    return lines
+
+
+@api_bp.route("/api/reminders/export-ics", methods=["GET"])
+@login_required
+def export_ics():
+    """Exports reminders, upcoming courses, and project delivery dates as a
+    single .ics file the person can import into Apple Calendar, Outlook, etc.
+    Generated on demand — nothing is pushed automatically."""
+    user = current_user()
+
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//GDC Production Manager//RO",
+        "CALSCALE:GREGORIAN",
+    ]
+
+    for r in Reminder.query.filter_by(user_id=user.id, done=False).all():
+        if r.due_time:
+            try:
+                hh, mm = [int(x) for x in r.due_time.split(":")]
+            except (ValueError, AttributeError):
+                hh, mm = 9, 0
+            start_dt = datetime.combine(r.due_date, datetime.min.time()).replace(hour=hh, minute=mm)
+            end_dt = start_dt + timedelta(hours=1)
+            lines += _ics_event(f"reminder-{r.id}@gdc-production-manager", r.title, r.description, start_dt, end_dt)
+        else:
+            end_date = r.due_date + timedelta(days=1)
+            lines += _ics_event(
+                f"reminder-{r.id}@gdc-production-manager", r.title, r.description,
+                r.due_date, end_date, all_day=True,
+            )
+
+    today = date.today()
+    for c in Course.query.filter_by(user_id=user.id).filter(Course.date >= today).all():
+        if c.status in ("completed", "cancelled"):
+            continue
+        try:
+            hh, mm = [int(x) for x in (c.time or "09:00").split(":")]
+        except ValueError:
+            hh, mm = 9, 0
+        start_dt = datetime.combine(c.date, datetime.min.time()).replace(hour=hh, minute=mm)
+        end_dt = start_dt + timedelta(minutes=c.duration_minutes or 60)
+        desc = f"Curs · {c.client.name}" if c.client else "Curs"
+        lines += _ics_event(f"course-{c.id}@gdc-production-manager", c.topic, desc, start_dt, end_dt)
+
+    for p in Project.query.filter_by(user_id=user.id).filter(Project.delivery_date.isnot(None)).all():
+        if p.status == "delivered" or p.delivery_date < today:
+            continue
+        end_date = p.delivery_date + timedelta(days=1)
+        lines += _ics_event(
+            f"delivery-{p.id}@gdc-production-manager", f"Predare: {p.title}", "",
+            p.delivery_date, end_date, all_day=True,
+        )
+
+    lines.append("END:VCALENDAR")
+    ics_content = "\r\n".join(lines) + "\r\n"
+
+    return Response(
+        ics_content,
+        mimetype="text/calendar",
+        headers={"Content-Disposition": "attachment; filename=gdc-production-manager.ics"},
+    )
 
 
 @api_bp.route("/api/reminders", methods=["POST"])

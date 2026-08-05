@@ -399,16 +399,28 @@
       return;
     }
 
-    container.innerHTML = checklists.map(cl => `
+    container.innerHTML = checklists.map(cl => {
+      const pct = cl.total_count ? Math.round((cl.done_count / cl.total_count) * 100) : 0;
+      return `
       <div class="card" style="margin-bottom:10px; padding:14px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
           <div>
             <strong style="font-size:13.5px;">${escapeHtml(cl.name)}</strong>
-            <span class="row-sub" style="margin-left:6px;">${t("checklist_type_" + cl.checklist_type)} · ${cl.done_count}/${cl.total_count}</span>
+            <span class="row-sub" style="margin-left:6px;">${t("checklist_type_" + cl.checklist_type)}</span>
           </div>
-          <button type="button" class="btn btn-danger btn-sm" data-delete-checklist="${cl.id}">✕</button>
+          <div style="display:flex; gap:6px;">
+            <a class="btn btn-ghost btn-sm" href="checklist-report.html?id=${cl.id}" target="_blank" title="${t("project_report")}" style="padding:3px 8px;">📄</a>
+            <button type="button" class="btn btn-danger btn-sm" data-delete-checklist="${cl.id}" style="padding:3px 8px;">✕</button>
+          </div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+        <div class="checklist-progress-track">
+          <div class="checklist-progress-fill ${pct === 100 ? "complete" : ""}" style="width:${pct}%;"></div>
+        </div>
+        <div class="checklist-progress-label">
+          <span>${pct}%</span>
+          <span>${cl.done_count}/${cl.total_count}</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin:10px 0;">
           ${cl.items.map(it => `
             <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
               <input type="checkbox" data-toggle-item="${cl.id}:${it.id}" ${it.done ? "checked" : ""} style="width:auto;">
@@ -421,7 +433,8 @@
           <input type="text" placeholder="${t("add_item_placeholder")}" data-new-item="${cl.id}" style="flex:1; min-width:140px; background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:6px 10px; font-size:12.5px;">
         </div>
       </div>
-    `).join("");
+    `;
+    }).join("");
 
     container.querySelectorAll("[data-toggle-item]").forEach(cb => {
       cb.addEventListener("change", () => {

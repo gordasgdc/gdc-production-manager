@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager — Checklist</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{ background: var(--bg); }
+  .report-wrap{ max-width: 640px; margin: 0 auto; padding: 36px 24px 80px; }
+  .report-page{
+    background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius-lg);
+    padding: 40px;
+  }
+  .report-topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 24px; }
+  .report-head{
+    display:flex; align-items:center; gap:12px;
+    border-bottom: 1px solid var(--border-soft); padding-bottom: 20px; margin-bottom: 20px;
+  }
+  .report-head .brand-mark{
+    width:34px; height:34px; border-radius:8px;
+    background:linear-gradient(135deg, var(--tally), var(--scope));
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#0d0f14; font-family: var(--font-display);
+  }
+  .report-title{ font-size: 20px; margin: 4px 0 0; }
+  .report-meta-line{ color: var(--text-faint); font-size:12px; font-family: var(--font-mono); }
+  .checklist-item-row{
+    display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border-soft); font-size:14px;
+  }
+  .checklist-item-row:last-child{ border-bottom:none; }
+  .checklist-item-row .box{ font-size:16px; line-height:1.2; }
+  .checklist-item-row.done span.txt{ text-decoration:line-through; color:var(--text-faint); }
+  @media print {
+    body{ background:#fff; }
+    .report-wrap{ padding:0; max-width:none; }
+    .report-page{ border:none; border-radius:0; padding:0; }
+    .sidebar, .no-print{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="report-wrap">
+  <div class="report-topbar no-print">
+    <a href="projects.html" class="btn btn-ghost btn-sm">← <span data-t="cancel">Renunță</span></a>
+    <button class="btn btn-primary btn-sm" id="print-btn">🖨️ <span data-t="print_save_pdf">Printează / Salvează PDF</span></button>
+  </div>
+
+  <div class="report-page" id="report-content">
+    <p style="color:var(--text-faint);">Se încarcă…</p>
+  </div>
+</div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function renderReport(cl) {
+    document.title = `GDC Production Manager — ${cl.name}`;
+    applyStaticTranslations();
+
+    const pct = cl.total_count ? Math.round((cl.done_count / cl.total_count) * 100) : 0;
+
+    document.getElementById("report-content").innerHTML = `
+      <div class="report-head">
+        <div class="brand-mark">G</div>
+        <div>
+          <h1 class="report-title">${escapeHtml(cl.name)}</h1>
+          <div class="report-meta-line">
+            ${cl.project_title ? escapeHtml(cl.project_title) + " · " : ""}${t("report_generated_on")} ${fmtDate(new Date().toISOString().slice(0,10))}
+          </div>
+        </div>
+      </div>
+
+      <div class="checklist-progress-track">
+        <div class="checklist-progress-fill ${pct === 100 ? "complete" : ""}" style="width:${pct}%;"></div>
+      </div>
+      <div class="checklist-progress-label" style="margin-bottom:18px;">
+        <span>${pct}% ${t("pdf_completed_label")}</span>
+        <span>${cl.done_count}/${cl.total_count}</span>
+      </div>
+
+      <div>
+        ${cl.items.map(it => `
+          <div class="checklist-item-row ${it.done ? "done" : ""}">
+            <span class="box">${it.done ? "☑" : "☐"}</span>
+            <span class="txt">${escapeHtml(it.text)}</span>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  document.getElementById("print-btn").addEventListener("click", () => window.print());
+
+  requireAuth(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (!id) {
+      document.getElementById("report-content").innerHTML = `<p>Missing checklist id.</p>`;
+      return;
+    }
+    try {
+      const cl = await API.get(`/api/checklists/${id}`);
+      renderReport(cl);
+    } catch (e) {
+      document.getElementById("report-content").innerHTML = `<p>${errorMessage(e)}</p>`;
+    }
+  });
+</script>
+</body>
+</html>

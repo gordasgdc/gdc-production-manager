@@ -104,8 +104,8 @@
     container.innerHTML = ALL_TEMPLATES.map(tpl => `
       <div class="row-card" style="grid-template-columns: 1.6fr 1fr auto;">
         <div>
-          <div class="row-title">${escapeHtml(tpl.name)}</div>
-          <div class="row-sub">${t("checklist_type_" + tpl.checklist_type)} · ${tpl.items.length} item-uri</div>
+          <div class="row-title">${escapeHtml(tpl.name)} ${tpl.is_default ? '<span class="status-pill st-final" style="margin-left:6px;">implicit</span>' : ""}</div>
+          <div class="row-sub">${t("checklist_type_" + tpl.checklist_type)}${tpl.project_type ? " · " + t("type_" + tpl.project_type) : ""} · ${tpl.items.length} item-uri</div>
         </div>
         <div class="row-meta" style="font-size:12px; color:var(--text-faint);">${tpl.items.slice(0,3).map(escapeHtml).join(", ")}${tpl.items.length > 3 ? "…" : ""}</div>
         <div class="row-actions">
@@ -144,6 +144,13 @@
               <select id="tpl-type">${typeOptions}</select>
             </div>
             <div class="field">
+              <label>${t("template_project_type")}</label>
+              <select id="tpl-project-type">
+                <option value="">${t("no_template")}</option>
+                ${PROJECT_TYPES.map(pt => `<option value="${pt}" ${tpl && tpl.project_type === pt ? "selected" : ""}>${t("type_" + pt)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
               <label>${t("checklists_title")} — ${t("template_items_hint")}</label>
               <textarea id="tpl-items" rows="6">${tpl ? tpl.items.join("\\n") : ""}</textarea>
             </div>
@@ -169,6 +176,7 @@
       const payload = {
         name: document.getElementById("tpl-name").value.trim(),
         checklist_type: document.getElementById("tpl-type").value,
+        project_type: document.getElementById("tpl-project-type").value || null,
         items,
       };
       try {

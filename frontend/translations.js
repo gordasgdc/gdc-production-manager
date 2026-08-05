@@ -161,6 +161,7 @@ const TRANSLATIONS = {
     report_paid: "Încasat",
     report_outstanding: "Rest de încasat",
     print_save_pdf: "Printează / Salvează PDF",
+    pdf_completed_label: "completat",
 
     nav_courses: "Cursuri",
     nav_products: "Produse",
@@ -244,6 +245,7 @@ const TRANSLATIONS = {
     confirm_delete_checklist: "Ștergi acest checklist definitiv?",
 
     checklist_templates_section: "Șabloane checklist",
+    template_project_type: "Tip proiect potrivit",
     new_template: "Șablon nou",
     template_name: "Nume șablon",
     template_items_hint: "Un item pe linie",
@@ -267,6 +269,7 @@ const TRANSLATIONS = {
     confirm_delete_reminder: "Ștergi acest reminder definitiv?",
     mark_done: "Marchează ca rezolvat",
     show_done: "Arată rezolvate",
+    export_calendar: "Exportă calendar (.ics)",
   },
 
   en: {
@@ -429,6 +432,7 @@ const TRANSLATIONS = {
     report_paid: "Paid",
     report_outstanding: "Outstanding",
     print_save_pdf: "Print / Save as PDF",
+    pdf_completed_label: "complete",
 
     nav_courses: "Courses",
     nav_products: "Products",
@@ -512,6 +516,7 @@ const TRANSLATIONS = {
     confirm_delete_checklist: "Delete this checklist permanently?",
 
     checklist_templates_section: "Checklist templates",
+    template_project_type: "Best-fit project type",
     new_template: "New template",
     template_name: "Template name",
     template_items_hint: "One item per line",
@@ -535,6 +540,7 @@ const TRANSLATIONS = {
     confirm_delete_reminder: "Delete this reminder permanently?",
     mark_done: "Mark as done",
     show_done: "Show done",
+    export_calendar: "Export calendar (.ics)",
   },
 
   es: {
@@ -697,6 +703,7 @@ const TRANSLATIONS = {
     report_paid: "Cobrado",
     report_outstanding: "Pendiente",
     print_save_pdf: "Imprimir / Guardar como PDF",
+    pdf_completed_label: "completado",
 
     nav_courses: "Cursos",
     nav_products: "Productos",
@@ -780,6 +787,7 @@ const TRANSLATIONS = {
     confirm_delete_checklist: "¿Eliminar esta lista de forma permanente?",
 
     checklist_templates_section: "Plantillas de listas",
+    template_project_type: "Tipo de proyecto ideal",
     new_template: "Nueva plantilla",
     template_name: "Nombre de la plantilla",
     template_items_hint: "Un elemento por línea",
@@ -803,6 +811,7 @@ const TRANSLATIONS = {
     confirm_delete_reminder: "¿Eliminar este recordatorio de forma permanente?",
     mark_done: "Marcar como hecho",
     show_done: "Mostrar hechos",
+    export_calendar: "Exportar calendario (.ics)",
   },
 };
 

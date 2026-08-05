@@ -360,6 +360,8 @@ class ChecklistTemplate(db.Model):
 
     name = db.Column(db.String(150), nullable=False)
     checklist_type = db.Column(db.String(20), nullable=False, default="general")
+    project_type = db.Column(db.String(30), nullable=True)
+    is_default = db.Column(db.Boolean, nullable=False, default=False)
     items = db.Column(db.JSON, nullable=True, default=list)
 
     def to_dict(self) -> dict:
@@ -367,6 +369,8 @@ class ChecklistTemplate(db.Model):
             "id": self.id,
             "name": self.name,
             "checklist_type": self.checklist_type,
+            "project_type": self.project_type,
+            "is_default": self.is_default,
             "items": self.items or [],
         }
 

@@ -5,6 +5,11 @@ All notable changes to GDC Production Manager are documented here.
 ## [Unreleased]
 
 ### Added
+- Checklist progress bar (percentage + X/Y count) on every checklist
+- Per-checklist PDF export via a dedicated print-friendly page
+- 4 default checklist templates seeded automatically for every new account (Pre/Post-filmare Nuntă, Pre/Post-filmare Reclamă), each taggable with a best-fit project type; fully editable/deletable like any other template
+- Calendar export (.ics) combining reminders, upcoming courses, and project delivery dates — importable into Apple Calendar, Outlook, Google Calendar
+- In-app pop-up notifications: checked on load and every 15 minutes for upcoming/overdue deadlines, outstanding payments, and reminders due within 3 days; shown as in-app toasts plus native browser notifications when permission is granted
 - **Checklists & reminders module**: per-project checklists (pre-shoot / post-shoot / custom) with checkable items, "mark all", and reusable templates managed from Settings; standalone reminders (deadlines, invoices, meetings) with a dedicated page and a dashboard summary
 - Fixed a SQLAlchemy JSON-column persistence bug where in-place mutation of nested checklist items could silently fail to save (checklist toggling, "mark all", and item add/remove now deep-copy before mutating)
 - **Courses module**: 1-on-1 training sessions with topic, date/time, duration, price, payment status, course status, and location; linked to clients

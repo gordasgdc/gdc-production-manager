@@ -530,6 +530,23 @@ button, input, select, textarea{ font-family: var(--font-body); }
 }
 .attach-drop:hover{ border-color: var(--scope); color: var(--text-muted); }
 
+/* ------------------------------------------------------- checklist progress */
+
+.checklist-progress-track{
+  width: 100%; height: 8px; border-radius: 5px; background: var(--border);
+  overflow: hidden; margin: 8px 0 6px;
+}
+.checklist-progress-fill{
+  height: 100%; border-radius: 5px;
+  background: linear-gradient(90deg, var(--tally), var(--amber), var(--scope));
+  transition: width .25s ease;
+}
+.checklist-progress-fill.complete{ background: var(--scope); }
+.checklist-progress-label{
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-faint);
+  display:flex; justify-content:space-between;
+}
+
 /* --------------------------------------------------------------- calendar */
 
 .cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }

@@ -10,6 +10,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, session
 
 from models import db, User
+from seed import seed_default_checklist_templates
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -63,6 +64,8 @@ def register():
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
+
+    seed_default_checklist_templates(user)
 
     session["user_id"] = user.id
     return jsonify({"user": user.to_dict()}), 201

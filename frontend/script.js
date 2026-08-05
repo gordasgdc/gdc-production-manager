@@ -138,6 +138,71 @@ async function fetchNotificationCount() {
   }
 }
 
+// ------------------------------------------------- pop-up notifications ----
+// Checks on load and every 15 minutes for deadlines, overdue invoices, and
+// reminders due soon. Shows an in-app toast always, plus a native browser
+// notification when permission has been granted (best available option
+// since the app runs as a local page in the system browser).
+
+function notifBodyText(n) {
+  if (n.type === "deadline_overdue") return tf("notif_deadline_overdue", { days: n.days });
+  if (n.type === "deadline_soon") return n.days === 0 ? t("notif_deadline_today") : tf("notif_deadline_soon", { days: n.days });
+  if (n.type === "payment_outstanding") return tf("notif_payment_outstanding", { amount: fmtMoney(n.amount) });
+  return "";
+}
+
+async function checkAndPopupNotifications() {
+  const todayKey = "gdc_notified_" + new Date().toISOString().slice(0, 10);
+  let shown = [];
+  try { shown = JSON.parse(localStorage.getItem(todayKey) || "[]"); } catch (e) { shown = []; }
+
+  try {
+    const [notifData, reminders] = await Promise.all([
+      API.get("/api/notifications"),
+      API.get("/api/reminders/upcoming"),
+    ]);
+
+    const items = [];
+    (notifData.notifications || []).forEach(n => {
+      items.push({ key: `notif-${n.type}-${n.project_id}`, title: n.project_title, body: notifBodyText(n) });
+    });
+    (reminders || []).forEach(r => {
+      const due = new Date(r.due_date + "T00:00:00");
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const daysLeft = Math.round((due - today) / 86400000);
+      if (daysLeft <= 3) {
+        items.push({ key: `reminder-${r.id}`, title: r.title, body: fmtDate(r.due_date) + (r.due_time ? " · " + r.due_time : "") });
+      }
+    });
+
+    let changed = false;
+    items.forEach(item => {
+      if (shown.includes(item.key)) return;
+      shown.push(item.key);
+      changed = true;
+      showToast(`${item.title} — ${item.body}`);
+      if (window.Notification && Notification.permission === "granted") {
+        try { new Notification(item.title, { body: item.body, icon: "icon.png" }); } catch (e) {}
+      }
+    });
+    if (changed) localStorage.setItem(todayKey, JSON.stringify(shown));
+  } catch (e) {
+    // Silent — polling shouldn't interrupt normal use if the check fails.
+  }
+}
+
+function initNotificationPolling() {
+  if (window.__gdcPollingStarted) return;
+  window.__gdcPollingStarted = true;
+
+  if (window.Notification && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+
+  checkAndPopupNotifications();
+  setInterval(checkAndPopupNotifications, 15 * 60 * 1000);
+}
+
 // ---------------------------------------------------------- app shell ----
 
 const NAV_ITEMS = [
@@ -216,6 +281,8 @@ function renderShell(activeHref, user) {
     document.getElementById("main-content").innerHTML =
       `<div class="empty-state"><div class="icon">⏻</div><p>Poți închide această fereastră / You can close this window.</p></div>`;
   });
+
+  initNotificationPolling();
 }
 
 // Ensures the user is authenticated, then calls onReady(user).

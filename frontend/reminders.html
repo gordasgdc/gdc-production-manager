@@ -34,7 +34,10 @@
           <h1>${t("reminders_title")}</h1>
           <p>${t("reminders_sub")}</p>
         </div>
-        <button class="btn btn-primary" id="new-reminder-btn">+ ${t("new_reminder")}</button>
+        <div style="display:flex; gap:8px;">
+          <a class="btn btn-ghost" href="/api/reminders/export-ics" id="export-ics-btn">📅 ${t("export_calendar")}</a>
+          <button class="btn btn-primary" id="new-reminder-btn">+ ${t("new_reminder")}</button>
+        </div>
       </div>
       <div class="toolbar">
         <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-muted);">
