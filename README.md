@@ -29,6 +29,8 @@ La prima pornire, aplicația deschide automat interfața într-un tab de browser
 - **Produse digitale**: DCTL-uri, PowerGrade, LUT-uri, presetări, șabloane — cu preț, versiune, compatibilitate, cale locală și link de descărcare
 - **Căi de fișiere** pentru RAW, montaj și export final
 - **Atașamente**: contracte, brief-uri sau referințe direct pe proiect
+- **Checklist-uri per proiect** (pre-filmare, post-filmare, personalizate), cu item-uri bifabile, progres și șabloane reutilizabile
+- **Reminder-uri** pentru termene, facturi și întâlniri, cu rezumat în dashboard
 - **Facturare simplă**: buget total, sumă încasată, status plată
 - **Panou general** cu statistici, notificări (termene apropiate, facturi neplătite), predări și cursuri apropiate
 - **Calendar lunar** cu filmări și predări

@@ -5,6 +5,8 @@ All notable changes to GDC Production Manager are documented here.
 ## [Unreleased]
 
 ### Added
+- **Checklists & reminders module**: per-project checklists (pre-shoot / post-shoot / custom) with checkable items, "mark all", and reusable templates managed from Settings; standalone reminders (deadlines, invoices, meetings) with a dedicated page and a dashboard summary
+- Fixed a SQLAlchemy JSON-column persistence bug where in-place mutation of nested checklist items could silently fail to save (checklist toggling, "mark all", and item add/remove now deep-copy before mutating)
 - **Courses module**: 1-on-1 training sessions with topic, date/time, duration, price, payment status, course status, and location; linked to clients
 - **Digital products module**: DCTLs, PowerGrades, LUTs, presets and templates, with price, version, compatibility, file path and download link
 - **Selectable currency (EUR/RON)** per project, course and product, with a default set per user account; dashboard totals are tracked separately per currency rather than mixed together

@@ -164,6 +164,7 @@ const TRANSLATIONS = {
 
     nav_courses: "Cursuri",
     nav_products: "Produse",
+    nav_reminders: "Reminder-uri",
 
     currency_EUR: "EUR",
     currency_RON: "RON (lei)",
@@ -227,6 +228,45 @@ const TRANSLATIONS = {
     stat_products_total: "Total produse",
     stat_product_revenue: "Venituri produse (total)",
     open_link: "Deschide",
+
+    checklists_title: "Checklist-uri",
+    checklist_type_pre_filming: "Pre-filmare",
+    checklist_type_post_filming: "Post-filmare",
+    checklist_type_general: "Personalizat",
+    new_checklist: "Checklist nou",
+    checklist_name: "Nume checklist",
+    use_template: "Folosește șablon (opțional)",
+    no_template: "— fără șablon —",
+    mark_all: "✅ Marchează toate",
+    add_item: "➕ Adaugă item",
+    add_item_placeholder: "Text item nou…",
+    no_checklists: "Niciun checklist încă pentru acest proiect.",
+    confirm_delete_checklist: "Ștergi acest checklist definitiv?",
+
+    checklist_templates_section: "Șabloane checklist",
+    new_template: "Șablon nou",
+    template_name: "Nume șablon",
+    template_items_hint: "Un item pe linie",
+    confirm_delete_template: "Ștergi acest șablon definitiv?",
+    no_templates: "Niciun șablon încă.",
+
+    reminders_title: "Reminder-uri",
+    reminders_sub: "Termene, facturi și întâlniri de care să nu uiți",
+    new_reminder: "Reminder nou",
+    field_reminder_title: "Titlu",
+    field_due_date: "Data",
+    field_due_time: "Ora (opțional)",
+    field_reminder_type: "Tip",
+    field_related_project: "Proiect asociat (opțional)",
+    reminder_type_deadline: "Termen",
+    reminder_type_invoice: "Factură",
+    reminder_type_meeting: "Întâlnire",
+    reminder_type_general: "General",
+    no_reminders: "Niciun reminder încă",
+    no_reminders_hint: "Adaugă primul tău reminder pentru a nu uita un termen important.",
+    confirm_delete_reminder: "Ștergi acest reminder definitiv?",
+    mark_done: "Marchează ca rezolvat",
+    show_done: "Arată rezolvate",
   },
 
   en: {
@@ -392,6 +432,7 @@ const TRANSLATIONS = {
 
     nav_courses: "Courses",
     nav_products: "Products",
+    nav_reminders: "Reminders",
 
     currency_EUR: "EUR",
     currency_RON: "RON (lei)",
@@ -455,6 +496,45 @@ const TRANSLATIONS = {
     stat_products_total: "Total products",
     stat_product_revenue: "Product revenue (total)",
     open_link: "Open",
+
+    checklists_title: "Checklists",
+    checklist_type_pre_filming: "Pre-shoot",
+    checklist_type_post_filming: "Post-shoot",
+    checklist_type_general: "Custom",
+    new_checklist: "New checklist",
+    checklist_name: "Checklist name",
+    use_template: "Use a template (optional)",
+    no_template: "— no template —",
+    mark_all: "✅ Mark all",
+    add_item: "➕ Add item",
+    add_item_placeholder: "New item text…",
+    no_checklists: "No checklists yet for this project.",
+    confirm_delete_checklist: "Delete this checklist permanently?",
+
+    checklist_templates_section: "Checklist templates",
+    new_template: "New template",
+    template_name: "Template name",
+    template_items_hint: "One item per line",
+    confirm_delete_template: "Delete this template permanently?",
+    no_templates: "No templates yet.",
+
+    reminders_title: "Reminders",
+    reminders_sub: "Deadlines, invoices and meetings you don't want to miss",
+    new_reminder: "New reminder",
+    field_reminder_title: "Title",
+    field_due_date: "Date",
+    field_due_time: "Time (optional)",
+    field_reminder_type: "Type",
+    field_related_project: "Related project (optional)",
+    reminder_type_deadline: "Deadline",
+    reminder_type_invoice: "Invoice",
+    reminder_type_meeting: "Meeting",
+    reminder_type_general: "General",
+    no_reminders: "No reminders yet",
+    no_reminders_hint: "Add your first reminder so you don't miss an important deadline.",
+    confirm_delete_reminder: "Delete this reminder permanently?",
+    mark_done: "Mark as done",
+    show_done: "Show done",
   },
 
   es: {
@@ -620,6 +700,7 @@ const TRANSLATIONS = {
 
     nav_courses: "Cursos",
     nav_products: "Productos",
+    nav_reminders: "Recordatorios",
 
     currency_EUR: "EUR",
     currency_RON: "RON (lei)",
@@ -683,6 +764,45 @@ const TRANSLATIONS = {
     stat_products_total: "Total de productos",
     stat_product_revenue: "Ingresos por productos (total)",
     open_link: "Abrir",
+
+    checklists_title: "Listas de verificación",
+    checklist_type_pre_filming: "Antes del rodaje",
+    checklist_type_post_filming: "Después del rodaje",
+    checklist_type_general: "Personalizada",
+    new_checklist: "Nueva lista",
+    checklist_name: "Nombre de la lista",
+    use_template: "Usar una plantilla (opcional)",
+    no_template: "— sin plantilla —",
+    mark_all: "✅ Marcar todo",
+    add_item: "➕ Añadir elemento",
+    add_item_placeholder: "Texto del nuevo elemento…",
+    no_checklists: "Aún no hay listas para este proyecto.",
+    confirm_delete_checklist: "¿Eliminar esta lista de forma permanente?",
+
+    checklist_templates_section: "Plantillas de listas",
+    new_template: "Nueva plantilla",
+    template_name: "Nombre de la plantilla",
+    template_items_hint: "Un elemento por línea",
+    confirm_delete_template: "¿Eliminar esta plantilla de forma permanente?",
+    no_templates: "Aún no hay plantillas.",
+
+    reminders_title: "Recordatorios",
+    reminders_sub: "Plazos, facturas y reuniones que no quieres olvidar",
+    new_reminder: "Nuevo recordatorio",
+    field_reminder_title: "Título",
+    field_due_date: "Fecha",
+    field_due_time: "Hora (opcional)",
+    field_reminder_type: "Tipo",
+    field_related_project: "Proyecto relacionado (opcional)",
+    reminder_type_deadline: "Plazo",
+    reminder_type_invoice: "Factura",
+    reminder_type_meeting: "Reunión",
+    reminder_type_general: "General",
+    no_reminders: "Aún no hay recordatorios",
+    no_reminders_hint: "Añade tu primer recordatorio para no olvidar un plazo importante.",
+    confirm_delete_reminder: "¿Eliminar este recordatorio de forma permanente?",
+    mark_done: "Marcar como hecho",
+    show_done: "Mostrar hechos",
   },
 };
 
@@ -692,6 +812,8 @@ const PAYMENT_STATUSES = ["unpaid", "partial", "paid"];
 const COURSE_STATUSES = ["scheduled", "confirmed", "completed", "cancelled"];
 const PRODUCT_TYPES_LIST = ["dctl", "powergrade", "lut", "preset", "template", "other"];
 const CURRENCIES = ["EUR", "RON"];
+const CHECKLIST_TYPES = ["pre_filming", "post_filming", "general"];
+const REMINDER_TYPES = ["deadline", "invoice", "meeting", "general"];
 
 let CURRENT_LANG = localStorage.getItem("gdc_lang") || "ro";
 

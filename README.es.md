@@ -29,6 +29,8 @@ Al iniciar por primera vez, la app abre su interfaz en una pestaña de navegador
 - **Productos digitales**: DCTLs, PowerGrades, LUTs, presets, plantillas — con precio, versión, compatibilidad, ruta local y enlace de descarga
 - **Rutas de archivos** para RAW, montaje y exportación final
 - **Adjuntos**: contratos, briefs o referencias directamente en el proyecto
+- **Listas de verificación por proyecto** (antes del rodaje, después del rodaje, personalizadas), con elementos marcables, progreso y plantillas reutilizables
+- **Recordatorios** para plazos, facturas y reuniones, con resumen en el panel
 - **Facturación simple**: presupuesto total, cantidad cobrada, estado de pago
 - **Panel** con estadísticas, notificaciones (plazos próximos, facturas pendientes), próximas entregas y cursos
 - **Calendario mensual** de rodajes y entregas

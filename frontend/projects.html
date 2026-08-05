@@ -217,6 +217,16 @@
                 <div class="attach-drop" id="attach-drop">${t("attach_upload_hint")}</div>
                 <input type="file" id="attach-file-input" style="display:none;">
               </div>
+              <div class="field">
+                <label>${t("checklists_title")}</label>
+                <div id="checklists-container"><p style="color:var(--text-faint); font-size:12px;">…</p></div>
+                <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                  <select id="new-checklist-template" style="flex:1; min-width:160px; background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:8px 10px; font-size:12.5px;">
+                    <option value="">${t("no_template")}</option>
+                  </select>
+                  <button type="button" class="btn btn-ghost btn-sm" id="add-checklist-btn">+ ${t("new_checklist")}</button>
+                </div>
+              </div>
             ` : ""}
             <div class="modal-actions">
               <button type="button" class="btn" id="modal-cancel">${t("cancel")}</button>
@@ -244,6 +254,10 @@
         e.target.value = "";
         if (file) uploadAttachment(id, file);
       });
+
+      loadChecklists(id);
+      loadChecklistTemplatesIntoSelect();
+      document.getElementById("add-checklist-btn").addEventListener("click", () => createChecklist(id));
     }
 
     document.getElementById("project-form").addEventListener("submit", async (e) => {
@@ -350,6 +364,135 @@
     try {
       await API.del(`/api/attachments/${attachmentId}`);
       await loadAttachments(projectId);
+      await loadData();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function loadChecklistTemplatesIntoSelect() {
+    const select = document.getElementById("new-checklist-template");
+    if (!select) return;
+    try {
+      const templates = await API.get("/api/checklist-templates");
+      select.innerHTML = `<option value="">${t("no_template")}</option>` +
+        templates.map(tpl => `<option value="${tpl.id}">${escapeHtml(tpl.name)} (${t("checklist_type_" + tpl.checklist_type)})</option>`).join("");
+    } catch (e) {}
+  }
+
+  async function loadChecklists(projectId) {
+    const container = document.getElementById("checklists-container");
+    if (!container) return;
+    try {
+      const checklists = await API.get(`/api/projects/${projectId}/checklists`);
+      renderChecklists(projectId, checklists);
+    } catch (e) {
+      container.innerHTML = "";
+    }
+  }
+
+  function renderChecklists(projectId, checklists) {
+    const container = document.getElementById("checklists-container");
+    if (!container) return;
+    if (!checklists.length) {
+      container.innerHTML = `<p style="color:var(--text-faint); font-size:12px;">${t("no_checklists")}</p>`;
+      return;
+    }
+
+    container.innerHTML = checklists.map(cl => `
+      <div class="card" style="margin-bottom:10px; padding:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <strong style="font-size:13.5px;">${escapeHtml(cl.name)}</strong>
+            <span class="row-sub" style="margin-left:6px;">${t("checklist_type_" + cl.checklist_type)} · ${cl.done_count}/${cl.total_count}</span>
+          </div>
+          <button type="button" class="btn btn-danger btn-sm" data-delete-checklist="${cl.id}">✕</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+          ${cl.items.map(it => `
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+              <input type="checkbox" data-toggle-item="${cl.id}:${it.id}" ${it.done ? "checked" : ""} style="width:auto;">
+              <span style="${it.done ? "text-decoration:line-through; color:var(--text-faint);" : ""}">${escapeHtml(it.text)}</span>
+            </label>
+          `).join("")}
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-ghost btn-sm" data-mark-all="${cl.id}">${t("mark_all")}</button>
+          <input type="text" placeholder="${t("add_item_placeholder")}" data-new-item="${cl.id}" style="flex:1; min-width:140px; background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:6px 10px; font-size:12.5px;">
+        </div>
+      </div>
+    `).join("");
+
+    container.querySelectorAll("[data-toggle-item]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const [clId, itemId] = cb.dataset.toggleItem.split(":");
+        toggleChecklistItem(projectId, Number(clId), itemId);
+      });
+    });
+    container.querySelectorAll("[data-mark-all]").forEach(btn => {
+      btn.addEventListener("click", () => markAllChecklist(projectId, Number(btn.dataset.markAll)));
+    });
+    container.querySelectorAll("[data-delete-checklist]").forEach(btn => {
+      btn.addEventListener("click", () => deleteChecklist(projectId, Number(btn.dataset.deleteChecklist)));
+    });
+    container.querySelectorAll("[data-new-item]").forEach(input => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const text = input.value.trim();
+          if (text) addChecklistItem(projectId, Number(input.dataset.newItem), text);
+        }
+      });
+    });
+  }
+
+  async function createChecklist(projectId) {
+    const templateId = document.getElementById("new-checklist-template").value;
+    try {
+      await API.post(`/api/projects/${projectId}/checklists`, {
+        template_id: templateId || null,
+        name: templateId ? undefined : t("new_checklist"),
+        checklist_type: "general",
+      });
+      await loadChecklists(projectId);
+      await loadData();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function toggleChecklistItem(projectId, checklistId, itemId) {
+    try {
+      await API.post(`/api/checklists/${checklistId}/toggle-item`, { item_id: itemId });
+      await loadChecklists(projectId);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function markAllChecklist(projectId, checklistId) {
+    try {
+      await API.post(`/api/checklists/${checklistId}/mark-all`, { done: true });
+      await loadChecklists(projectId);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function addChecklistItem(projectId, checklistId, text) {
+    try {
+      await API.post(`/api/checklists/${checklistId}/items`, { text });
+      await loadChecklists(projectId);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function deleteChecklist(projectId, checklistId) {
+    if (!confirm(t("confirm_delete_checklist"))) return;
+    try {
+      await API.del(`/api/checklists/${checklistId}`);
+      await loadChecklists(projectId);
       await loadData();
     } catch (e) {
       showToast(errorMessage(e), "error");

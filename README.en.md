@@ -29,6 +29,8 @@ On first launch the app opens its interface in a local browser tab (`http://127.
 - **Digital products**: DCTLs, PowerGrades, LUTs, presets, templates — with price, version, compatibility, local path and download link
 - **File paths** for RAW footage, edit, and final export
 - **Attachments**: contracts, briefs or references right on a project
+- **Per-project checklists** (pre-shoot, post-shoot, custom), with checkable items, progress tracking and reusable templates
+- **Reminders** for deadlines, invoices and meetings, with a dashboard summary
 - **Simple invoicing**: total budget, amount paid, payment status
 - **Dashboard** with stats, notifications (upcoming deadlines, unpaid invoices), upcoming deliveries and courses
 - **Monthly calendar** of shoots and deliveries

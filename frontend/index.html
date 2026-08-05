@@ -68,6 +68,14 @@
       </div>
 
       <div class="card" style="margin-bottom:22px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <h3 style="font-size:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono); margin:0;">${t("reminders_title")}</h3>
+          <a href="reminders.html" class="btn btn-ghost btn-sm">${t("new_reminder")}</a>
+        </div>
+        <div class="notif-list" id="reminders-list"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:22px;">
         <h3 style="margin-bottom:14px; font-size:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono);">${t("notifications_title")}</h3>
         <div class="notif-list" id="notif-list"></div>
       </div>
@@ -124,6 +132,22 @@
     document.getElementById("import-input").addEventListener("change", importData);
 
     loadNotifications();
+    renderRemindersList(data.upcoming_reminders || []);
+  }
+
+  function renderRemindersList(reminders) {
+    const container = document.getElementById("reminders-list");
+    if (!reminders.length) {
+      container.innerHTML = `<p style="color:var(--text-faint); font-size:13px;">${t("no_reminders")}</p>`;
+      return;
+    }
+    const icons = { deadline: "⏰", invoice: "💶", meeting: "🤝", general: "🔔" };
+    container.innerHTML = reminders.map(r => `
+      <div class="notif-item">
+        <span class="notif-icon">${icons[r.reminder_type] || "🔔"}</span>
+        <span class="notif-text"><strong>${escapeHtml(r.title)}</strong> — ${fmtDate(r.due_date)}${r.due_time ? " · " + r.due_time : ""}${r.project_title ? " · " + escapeHtml(r.project_title) : ""}</span>
+      </div>
+    `).join("");
   }
 
   async function loadNotifications() {

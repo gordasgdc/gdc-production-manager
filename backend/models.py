@@ -41,6 +41,9 @@ PRODUCT_TYPES = ["dctl", "powergrade", "lut", "preset", "template", "other"]
 
 CURRENCIES = ["EUR", "RON"]
 
+CHECKLIST_TYPES = ["pre_filming", "post_filming", "general"]
+REMINDER_TYPES = ["deadline", "invoice", "meeting", "general"]
+
 
 class User(db.Model):
     __tablename__ = "users"
@@ -75,6 +78,12 @@ class User(db.Model):
     )
     products = db.relationship(
         "DigitalProduct", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    checklist_templates = db.relationship(
+        "ChecklistTemplate", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    reminders = db.relationship(
+        "Reminder", backref="owner", lazy=True, cascade="all, delete-orphan"
     )
 
     def set_password(self, password: str) -> None:
@@ -209,8 +218,14 @@ class Project(db.Model):
     attachments = db.relationship(
         "Attachment", backref="project", lazy=True, cascade="all, delete-orphan"
     )
+    checklists = db.relationship(
+        "Checklist", backref="project", lazy=True, cascade="all, delete-orphan"
+    )
+    reminders = db.relationship(
+        "Reminder", backref="project", lazy=True, cascade="all, delete-orphan"
+    )
 
-    def to_dict(self, include_attachments=False) -> dict:
+    def to_dict(self, include_attachments=False, include_checklists=False) -> dict:
         data = {
             "id": self.id,
             "title": self.title,
@@ -236,9 +251,12 @@ class Project(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "attachment_count": len(self.attachments),
+            "checklist_count": len(self.checklists),
         }
         if include_attachments:
             data["attachments"] = [a.to_dict() for a in self.attachments]
+        if include_checklists:
+            data["checklists"] = [cl.to_dict() for cl in self.checklists]
         return data
 
 
@@ -327,4 +345,95 @@ class DigitalProduct(db.Model):
             "revenue": round((self.price or 0) * (self.units_sold or 0), 2),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ChecklistTemplate(db.Model):
+    """A reusable checklist blueprint, e.g. 'Pre-filmare nuntă'. `items` is a
+    plain list of strings — each becomes a fresh, unchecked item whenever the
+    template is applied to a project."""
+
+    __tablename__ = "checklist_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    name = db.Column(db.String(150), nullable=False)
+    checklist_type = db.Column(db.String(20), nullable=False, default="general")
+    items = db.Column(db.JSON, nullable=True, default=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "checklist_type": self.checklist_type,
+            "items": self.items or [],
+        }
+
+
+class Checklist(db.Model):
+    """A concrete checklist attached to one project. `items` is a list of
+    {"id": "...", "text": "...", "done": bool} dicts."""
+
+    __tablename__ = "checklists"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
+    template_id = db.Column(db.Integer, db.ForeignKey("checklist_templates.id"), nullable=True)
+
+    name = db.Column(db.String(150), nullable=False)
+    checklist_type = db.Column(db.String(20), nullable=False, default="general")
+    items = db.Column(db.JSON, nullable=True, default=list)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        items = self.items or []
+        done_count = sum(1 for it in items if it.get("done"))
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "template_id": self.template_id,
+            "name": self.name,
+            "checklist_type": self.checklist_type,
+            "items": items,
+            "done_count": done_count,
+            "total_count": len(items),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class Reminder(db.Model):
+    """A standalone reminder — a deadline, an unpaid invoice follow-up, a
+    meeting — optionally linked to a project."""
+
+    __tablename__ = "reminders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    due_date = db.Column(db.Date, nullable=False)
+    due_time = db.Column(db.String(5), nullable=True)  # "HH:MM"
+    reminder_type = db.Column(db.String(20), nullable=False, default="general")
+    done = db.Column(db.Boolean, nullable=False, default=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "project_title": self.project.title if self.project else None,
+            "title": self.title,
+            "description": self.description,
+            "due_date": self.due_date.isoformat() if self.due_date else None,
+            "due_time": self.due_time,
+            "reminder_type": self.reminder_type,
+            "done": self.done,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

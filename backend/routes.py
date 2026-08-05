@@ -4,14 +4,16 @@ GDC Production Manager - API routes for clients, projects, templates, dashboard.
 
 import os
 import uuid
+import copy
 from datetime import datetime, date, timedelta
 from flask import Blueprint, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
 from models import (
     db, Client, Project, WorkflowTemplate, Attachment, Course, DigitalProduct,
+    ChecklistTemplate, Checklist, Reminder,
     PROJECT_STATUSES, PROJECT_TYPES, PAYMENT_STATUSES, COURSE_STATUSES, PRODUCT_TYPES,
-    CURRENCIES,
+    CURRENCIES, CHECKLIST_TYPES, REMINDER_TYPES,
 )
 from auth import login_required, current_user
 from config import ATTACHMENTS_DIR
@@ -41,6 +43,8 @@ def meta():
             "course_statuses": COURSE_STATUSES,
             "product_types": PRODUCT_TYPES,
             "currencies": CURRENCIES,
+            "checklist_types": CHECKLIST_TYPES,
+            "reminder_types": REMINDER_TYPES,
         }
     )
 
@@ -182,7 +186,7 @@ def get_project(project_id):
     project = Project.query.filter_by(id=project_id, user_id=user.id).first()
     if not project:
         return jsonify({"error": "not_found"}), 404
-    return jsonify(project.to_dict(include_attachments=True))
+    return jsonify(project.to_dict(include_attachments=True, include_checklists=True))
 
 
 @api_bp.route("/api/projects", methods=["POST"])
@@ -369,6 +373,16 @@ def dashboard():
         cur = pr.currency or user.currency
         product_revenue_by_currency[cur] = product_revenue_by_currency.get(cur, 0) + (pr.price or 0) * (pr.units_sold or 0)
 
+    # ---- reminders ----
+    reminder_horizon = today + timedelta(days=7)
+    reminders = (
+        Reminder.query.filter_by(user_id=user.id, done=False)
+        .filter(Reminder.due_date <= reminder_horizon)
+        .order_by(Reminder.due_date.asc())
+        .limit(8)
+        .all()
+    )
+
     return jsonify(
         {
             "total_projects": len(projects),
@@ -389,6 +403,8 @@ def dashboard():
 
             "total_products": len(products),
             "product_revenue_total_by_currency": product_revenue_by_currency,
+
+            "upcoming_reminders": [r.to_dict() for r in reminders],
         }
     )
 
@@ -823,5 +839,366 @@ def delete_product(product_id):
     if not product:
         return jsonify({"error": "not_found"}), 404
     db.session.delete(product)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ------------------------------------------------------ checklist templates
+
+@api_bp.route("/api/checklist-templates", methods=["GET"])
+@login_required
+def list_checklist_templates():
+    user = current_user()
+    templates = ChecklistTemplate.query.filter_by(user_id=user.id).order_by(ChecklistTemplate.name.asc()).all()
+    return jsonify([t.to_dict() for t in templates])
+
+
+@api_bp.route("/api/checklist-templates", methods=["POST"])
+@login_required
+def create_checklist_template():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name_required"}), 400
+
+    items = data.get("items") or []
+    if not isinstance(items, list):
+        items = []
+
+    template = ChecklistTemplate(
+        user_id=user.id,
+        name=name,
+        checklist_type=data.get("checklist_type") if data.get("checklist_type") in CHECKLIST_TYPES else "general",
+        items=[str(i).strip() for i in items if str(i).strip()],
+    )
+    db.session.add(template)
+    db.session.commit()
+    return jsonify(template.to_dict()), 201
+
+
+@api_bp.route("/api/checklist-templates/<int:template_id>", methods=["PUT"])
+@login_required
+def update_checklist_template(template_id):
+    user = current_user()
+    template = ChecklistTemplate.query.filter_by(id=template_id, user_id=user.id).first()
+    if not template:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    if "name" in data and data["name"].strip():
+        template.name = data["name"].strip()
+    if "checklist_type" in data and data["checklist_type"] in CHECKLIST_TYPES:
+        template.checklist_type = data["checklist_type"]
+    if "items" in data and isinstance(data["items"], list):
+        template.items = [str(i).strip() for i in data["items"] if str(i).strip()]
+
+    db.session.commit()
+    return jsonify(template.to_dict())
+
+
+@api_bp.route("/api/checklist-templates/<int:template_id>", methods=["DELETE"])
+@login_required
+def delete_checklist_template(template_id):
+    user = current_user()
+    template = ChecklistTemplate.query.filter_by(id=template_id, user_id=user.id).first()
+    if not template:
+        return jsonify({"error": "not_found"}), 404
+    db.session.delete(template)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ----------------------------------------------------------- checklists ---
+
+def _project_or_404(user, project_id):
+    return Project.query.filter_by(id=project_id, user_id=user.id).first()
+
+
+@api_bp.route("/api/projects/<int:project_id>/checklists", methods=["GET"])
+@login_required
+def list_project_checklists(project_id):
+    user = current_user()
+    project = _project_or_404(user, project_id)
+    if not project:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify([cl.to_dict() for cl in project.checklists])
+
+
+@api_bp.route("/api/projects/<int:project_id>/checklists", methods=["POST"])
+@login_required
+def create_checklist(project_id):
+    user = current_user()
+    project = _project_or_404(user, project_id)
+    if not project:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    template_id = data.get("template_id")
+    items_source = data.get("items") or []
+
+    name = (data.get("name") or "").strip()
+    checklist_type = data.get("checklist_type") if data.get("checklist_type") in CHECKLIST_TYPES else "general"
+
+    if template_id:
+        template = ChecklistTemplate.query.filter_by(id=template_id, user_id=user.id).first()
+        if template:
+            items_source = template.items or []
+            if not name:
+                name = template.name
+            checklist_type = template.checklist_type
+
+    if not name:
+        return jsonify({"error": "name_required"}), 400
+
+    items = [{"id": uuid.uuid4().hex[:8], "text": str(t).strip(), "done": False} for t in items_source if str(t).strip()]
+
+    checklist = Checklist(
+        project_id=project_id,
+        template_id=template_id or None,
+        name=name,
+        checklist_type=checklist_type,
+        items=items,
+    )
+    db.session.add(checklist)
+    db.session.commit()
+    return jsonify(checklist.to_dict()), 201
+
+
+@api_bp.route("/api/checklists/<int:checklist_id>", methods=["PUT"])
+@login_required
+def update_checklist(checklist_id):
+    user = current_user()
+    checklist = (
+        Checklist.query.join(Project, Checklist.project_id == Project.id)
+        .filter(Checklist.id == checklist_id, Project.user_id == user.id)
+        .first()
+    )
+    if not checklist:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    if "name" in data and data["name"].strip():
+        checklist.name = data["name"].strip()
+    if "checklist_type" in data and data["checklist_type"] in CHECKLIST_TYPES:
+        checklist.checklist_type = data["checklist_type"]
+
+    checklist.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(checklist.to_dict())
+
+
+@api_bp.route("/api/checklists/<int:checklist_id>", methods=["DELETE"])
+@login_required
+def delete_checklist(checklist_id):
+    user = current_user()
+    checklist = (
+        Checklist.query.join(Project, Checklist.project_id == Project.id)
+        .filter(Checklist.id == checklist_id, Project.user_id == user.id)
+        .first()
+    )
+    if not checklist:
+        return jsonify({"error": "not_found"}), 404
+    db.session.delete(checklist)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/api/checklists/<int:checklist_id>/items", methods=["POST"])
+@login_required
+def add_checklist_item(checklist_id):
+    user = current_user()
+    checklist = (
+        Checklist.query.join(Project, Checklist.project_id == Project.id)
+        .filter(Checklist.id == checklist_id, Project.user_id == user.id)
+        .first()
+    )
+    if not checklist:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "text_required"}), 400
+
+    items = copy.deepcopy(checklist.items or [])
+    items.append({"id": uuid.uuid4().hex[:8], "text": text, "done": False})
+    checklist.items = items
+    checklist.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(checklist.to_dict()), 201
+
+
+@api_bp.route("/api/checklists/<int:checklist_id>/items/<item_id>", methods=["DELETE"])
+@login_required
+def delete_checklist_item(checklist_id, item_id):
+    user = current_user()
+    checklist = (
+        Checklist.query.join(Project, Checklist.project_id == Project.id)
+        .filter(Checklist.id == checklist_id, Project.user_id == user.id)
+        .first()
+    )
+    if not checklist:
+        return jsonify({"error": "not_found"}), 404
+
+    items = [copy.deepcopy(it) for it in (checklist.items or []) if it.get("id") != item_id]
+    checklist.items = items
+    checklist.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(checklist.to_dict())
+
+
+@api_bp.route("/api/checklists/<int:checklist_id>/toggle-item", methods=["POST"])
+@login_required
+def toggle_checklist_item(checklist_id):
+    user = current_user()
+    checklist = (
+        Checklist.query.join(Project, Checklist.project_id == Project.id)
+        .filter(Checklist.id == checklist_id, Project.user_id == user.id)
+        .first()
+    )
+    if not checklist:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    item_id = data.get("item_id")
+
+    items = copy.deepcopy(checklist.items or [])
+    found = False
+    for it in items:
+        if it.get("id") == item_id:
+            it["done"] = not it.get("done", False)
+            found = True
+            break
+
+    if not found:
+        return jsonify({"error": "item_not_found"}), 404
+
+    checklist.items = items
+    checklist.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(checklist.to_dict())
+
+
+@api_bp.route("/api/checklists/<int:checklist_id>/mark-all", methods=["POST"])
+@login_required
+def mark_all_checklist_items(checklist_id):
+    user = current_user()
+    checklist = (
+        Checklist.query.join(Project, Checklist.project_id == Project.id)
+        .filter(Checklist.id == checklist_id, Project.user_id == user.id)
+        .first()
+    )
+    if not checklist:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    done = data.get("done", True)
+
+    items = copy.deepcopy(checklist.items or [])
+    for it in items:
+        it["done"] = bool(done)
+    checklist.items = items
+    checklist.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(checklist.to_dict())
+
+
+# ------------------------------------------------------------- reminders ---
+
+@api_bp.route("/api/reminders", methods=["GET"])
+@login_required
+def list_reminders():
+    user = current_user()
+    query = Reminder.query.filter_by(user_id=user.id)
+
+    done_param = request.args.get("done")
+    if done_param is not None:
+        query = query.filter_by(done=(done_param == "true"))
+
+    reminders = query.order_by(Reminder.due_date.asc()).all()
+    return jsonify([r.to_dict() for r in reminders])
+
+
+@api_bp.route("/api/reminders/upcoming", methods=["GET"])
+@login_required
+def upcoming_reminders():
+    user = current_user()
+    today = date.today()
+    horizon = today + timedelta(days=7)
+    reminders = (
+        Reminder.query.filter_by(user_id=user.id, done=False)
+        .filter(Reminder.due_date <= horizon)
+        .order_by(Reminder.due_date.asc())
+        .all()
+    )
+    return jsonify([r.to_dict() for r in reminders])
+
+
+@api_bp.route("/api/reminders", methods=["POST"])
+@login_required
+def create_reminder():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    due_date = parse_date(data.get("due_date"))
+    if not title:
+        return jsonify({"error": "title_required"}), 400
+    if not due_date:
+        return jsonify({"error": "due_date_required"}), 400
+
+    reminder = Reminder(
+        user_id=user.id,
+        project_id=data.get("project_id") or None,
+        title=title,
+        description=data.get("description"),
+        due_date=due_date,
+        due_time=data.get("due_time") or None,
+        reminder_type=data.get("reminder_type") if data.get("reminder_type") in REMINDER_TYPES else "general",
+        done=bool(data.get("done", False)),
+    )
+    db.session.add(reminder)
+    db.session.commit()
+    return jsonify(reminder.to_dict()), 201
+
+
+@api_bp.route("/api/reminders/<int:reminder_id>", methods=["PUT"])
+@login_required
+def update_reminder(reminder_id):
+    user = current_user()
+    reminder = Reminder.query.filter_by(id=reminder_id, user_id=user.id).first()
+    if not reminder:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    if "title" in data and data["title"].strip():
+        reminder.title = data["title"].strip()
+    if "description" in data:
+        reminder.description = data["description"]
+    if "due_date" in data:
+        parsed = parse_date(data.get("due_date"))
+        if parsed:
+            reminder.due_date = parsed
+    if "due_time" in data:
+        reminder.due_time = data.get("due_time") or None
+    if "reminder_type" in data and data["reminder_type"] in REMINDER_TYPES:
+        reminder.reminder_type = data["reminder_type"]
+    if "project_id" in data:
+        reminder.project_id = data.get("project_id") or None
+    if "done" in data:
+        reminder.done = bool(data["done"])
+
+    db.session.commit()
+    return jsonify(reminder.to_dict())
+
+
+@api_bp.route("/api/reminders/<int:reminder_id>", methods=["DELETE"])
+@login_required
+def delete_reminder(reminder_id):
+    user = current_user()
+    reminder = Reminder.query.filter_by(id=reminder_id, user_id=user.id).first()
+    if not reminder:
+        return jsonify({"error": "not_found"}), 404
+    db.session.delete(reminder)
     db.session.commit()
     return jsonify({"ok": True})

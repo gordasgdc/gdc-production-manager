@@ -64,15 +64,137 @@
         </div>
         <div class="sync-status" id="sync-status"></div>
       </div>
+
+      <div class="card settings-section">
+        <h3>${t("checklist_templates_section")}</h3>
+        <div id="templates-list" class="list" style="margin-bottom:14px;"></div>
+        <button class="btn btn-ghost btn-sm" id="new-template-btn">+ ${t("new_template")}</button>
+        <div id="template-modal-root"></div>
+      </div>
     `;
 
     updateSyncStatus(user);
+    loadTemplates();
 
     document.getElementById("export-btn").addEventListener("click", exportData);
     document.getElementById("import-input").addEventListener("change", importData);
     document.getElementById("sync-save-btn").addEventListener("click", saveSyncSettings);
     document.getElementById("sync-push-btn").addEventListener("click", () => runSync("push"));
     document.getElementById("sync-pull-btn").addEventListener("click", () => runSync("pull"));
+    document.getElementById("new-template-btn").addEventListener("click", () => openTemplateModal(null));
+  }
+
+  let ALL_TEMPLATES = [];
+
+  async function loadTemplates() {
+    try {
+      ALL_TEMPLATES = await API.get("/api/checklist-templates");
+      renderTemplatesList();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  function renderTemplatesList() {
+    const container = document.getElementById("templates-list");
+    if (!ALL_TEMPLATES.length) {
+      container.innerHTML = `<p style="color:var(--text-faint); font-size:13px;">${t("no_templates")}</p>`;
+      return;
+    }
+    container.innerHTML = ALL_TEMPLATES.map(tpl => `
+      <div class="row-card" style="grid-template-columns: 1.6fr 1fr auto;">
+        <div>
+          <div class="row-title">${escapeHtml(tpl.name)}</div>
+          <div class="row-sub">${t("checklist_type_" + tpl.checklist_type)} · ${tpl.items.length} item-uri</div>
+        </div>
+        <div class="row-meta" style="font-size:12px; color:var(--text-faint);">${tpl.items.slice(0,3).map(escapeHtml).join(", ")}${tpl.items.length > 3 ? "…" : ""}</div>
+        <div class="row-actions">
+          <button class="btn btn-ghost btn-sm" data-edit-template="${tpl.id}">${t("edit")}</button>
+          <button class="btn btn-danger btn-sm" data-delete-template="${tpl.id}">${t("delete")}</button>
+        </div>
+      </div>
+    `).join("");
+
+    container.querySelectorAll("[data-edit-template]").forEach(btn => {
+      btn.addEventListener("click", () => openTemplateModal(Number(btn.dataset.editTemplate)));
+    });
+    container.querySelectorAll("[data-delete-template]").forEach(btn => {
+      btn.addEventListener("click", () => deleteTemplate(Number(btn.dataset.deleteTemplate)));
+    });
+  }
+
+  function openTemplateModal(id) {
+    const tpl = id ? ALL_TEMPLATES.find(x => x.id === id) : null;
+    const typeOptions = CHECKLIST_TYPES.map(ty => `<option value="${ty}" ${tpl && tpl.checklist_type === ty ? "selected" : ""}>${t("checklist_type_" + ty)}</option>`).join("");
+
+    document.getElementById("template-modal-root").innerHTML = `
+      <div class="modal-backdrop" id="tpl-modal-backdrop">
+        <div class="modal" style="max-width:460px;">
+          <div class="modal-header">
+            <h3>${id ? t("edit") : t("new_template")}</h3>
+            <button class="modal-close" id="tpl-modal-close">✕</button>
+          </div>
+          <form id="template-form">
+            <div class="field">
+              <label>${t("template_name")}</label>
+              <input type="text" id="tpl-name" required value="${tpl ? escapeHtml(tpl.name) : ""}">
+            </div>
+            <div class="field">
+              <label>${t("field_type")}</label>
+              <select id="tpl-type">${typeOptions}</select>
+            </div>
+            <div class="field">
+              <label>${t("checklists_title")} — ${t("template_items_hint")}</label>
+              <textarea id="tpl-items" rows="6">${tpl ? tpl.items.join("\\n") : ""}</textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn" id="tpl-modal-cancel">${t("cancel")}</button>
+              <button type="submit" class="btn btn-primary">${t("save")}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const close = () => { document.getElementById("template-modal-root").innerHTML = ""; };
+    document.getElementById("tpl-modal-close").addEventListener("click", close);
+    document.getElementById("tpl-modal-cancel").addEventListener("click", close);
+    document.getElementById("tpl-modal-backdrop").addEventListener("click", (e) => {
+      if (e.target.id === "tpl-modal-backdrop") close();
+    });
+
+    document.getElementById("template-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const items = document.getElementById("tpl-items").value.split("\\n").map(s => s.trim()).filter(Boolean);
+      const payload = {
+        name: document.getElementById("tpl-name").value.trim(),
+        checklist_type: document.getElementById("tpl-type").value,
+        items,
+      };
+      try {
+        if (id) {
+          await API.put(`/api/checklist-templates/${id}`, payload);
+        } else {
+          await API.post("/api/checklist-templates", payload);
+        }
+        close();
+        showToast(t("saved"));
+        await loadTemplates();
+      } catch (err) {
+        showToast(errorMessage(err), "error");
+      }
+    });
+  }
+
+  async function deleteTemplate(id) {
+    if (!confirm(t("confirm_delete_template"))) return;
+    try {
+      await API.del(`/api/checklist-templates/${id}`);
+      showToast(t("deleted"));
+      await loadTemplates();
+    } catch (err) {
+      showToast(errorMessage(err), "error");
+    }
   }
 
   function escapeHtml(str) {
