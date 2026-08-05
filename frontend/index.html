@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell"></div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  function renderDashboard(data) {
+    const main = document.getElementById("main-content");
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1>${t("dashboard_title")}</h1>
+          <p>${t("dashboard_sub")}</p>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="label">${t("stat_active")}</div>
+          <div class="value accent-amber">${data.active_projects}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">${t("stat_total")}</div>
+          <div class="value">${data.total_projects}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">${t("stat_clients")}</div>
+          <div class="value accent-scope">${data.total_clients}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">${t("stat_outstanding")}</div>
+          <div class="value accent-tally">${fmtMoney(data.outstanding)}</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:16px; font-size:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono);">${t("pipeline_overview")}</h3>
+        ${pipelineHtml(data.by_status)}
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:14px; font-size:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono);">${t("upcoming_deliveries")}</h3>
+        <div class="list" id="upcoming-list"></div>
+      </div>
+    `;
+
+    const list = document.getElementById("upcoming-list");
+    if (!data.upcoming_deliveries.length) {
+      list.innerHTML = `<p style="color:var(--text-faint); font-size:13px;">${t("no_upcoming")}</p>`;
+    } else {
+      list.innerHTML = data.upcoming_deliveries.map(p => `
+        <div class="row-card" style="grid-template-columns: 1.6fr 1fr 1fr;">
+          <div>
+            <div class="row-title">${escapeHtml(p.title)}</div>
+            <div class="row-sub">${p.client_name ? escapeHtml(p.client_name) : ""}</div>
+          </div>
+          <div class="row-meta mono">${fmtDate(p.delivery_date)}</div>
+          <div>${statusPillHtml(p.status)}</div>
+        </div>
+      `).join("");
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  requireAuth(async (user) => {
+    renderShell("index.html", user);
+    try {
+      const data = await API.get("/api/dashboard");
+      renderDashboard(data);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  });
+</script>
+</body>
+</html>

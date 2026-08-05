@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# PyInstaller
+build/*.spec.bak
+dist/
+*.spec.orig
+pkg_root/
+*.pkg
+*.app
+*.exe
+
+# Local data / secrets
+*.db
+.secret_key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
