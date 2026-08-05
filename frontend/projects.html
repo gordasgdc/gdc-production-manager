@@ -83,9 +83,11 @@
         </div>
         <div class="row-meta">
           <div class="mono">${t("field_delivery_date")}: ${fmtDate(p.delivery_date)}</div>
-          <div class="mono">${fmtMoney(p.amount_paid)} / ${fmtMoney(p.budget_total)}</div>
+          <div class="mono">${fmtMoney(p.amount_paid, p.currency)} / ${fmtMoney(p.budget_total, p.currency)}</div>
         </div>
         <div class="row-actions">
+          <a class="btn btn-ghost btn-sm" href="project-report.html?id=${p.id}" title="${t("project_report")}">📄</a>
+          ${p.status !== "delivered" ? `<button class="btn btn-ghost btn-sm" data-next-step="${p.id}" title="${t("next_step")}">→</button>` : ""}
           <button class="btn btn-ghost btn-sm" data-edit="${p.id}">${t("edit")}</button>
           <button class="btn btn-danger btn-sm" data-delete="${p.id}">${t("delete")}</button>
         </div>
@@ -98,6 +100,19 @@
     list.querySelectorAll("[data-delete]").forEach(btn => {
       btn.addEventListener("click", () => deleteProject(Number(btn.dataset.delete)));
     });
+    list.querySelectorAll("[data-next-step]").forEach(btn => {
+      btn.addEventListener("click", () => advanceNextStep(Number(btn.dataset.nextStep)));
+    });
+  }
+
+  async function advanceNextStep(id) {
+    try {
+      const result = await API.post(`/api/projects/${id}/next-step`);
+      showToast(tf("next_step_done", { status: t("status_" + result.status) }));
+      await loadData();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
   }
 
   function openModal(id) {
@@ -110,6 +125,7 @@
     const typeOptions = PROJECT_TYPES.map(ty => `<option value="${ty}" ${p && p.project_type === ty ? "selected" : ""}>${t("type_" + ty)}</option>`).join("");
     const statusOptions = STATUS_ORDER.map(s => `<option value="${s}" ${p && p.status === s ? "selected" : (!p && s === "planning" ? "selected" : "")}>${t("status_" + s)}</option>`).join("");
     const paymentOptions = PAYMENT_STATUSES.map(ps => `<option value="${ps}" ${p && p.payment_status === ps ? "selected" : ""}>${t("pay_" + ps)}</option>`).join("");
+    const currencyOptions = CURRENCIES.map(cu => `<option value="${cu}" ${p && p.currency === cu ? "selected" : (!p && cu === "EUR" ? "selected" : "")}>${t("currency_" + cu)}</option>`).join("");
 
     document.getElementById("modal-root").innerHTML = `
       <div class="modal-backdrop" id="modal-backdrop">
@@ -173,14 +189,35 @@
                 <input type="number" step="0.01" id="f-paid" value="${p ? p.amount_paid : 0}">
               </div>
             </div>
-            <div class="field">
-              <label>${t("field_payment_status")}</label>
-              <select id="f-payment-status">${paymentOptions}</select>
+            <div class="field-row">
+              <div class="field">
+                <label>${t("field_payment_status")}</label>
+                <select id="f-payment-status">${paymentOptions}</select>
+              </div>
+              <div class="field">
+                <label>${t("field_currency")}</label>
+                <select id="f-currency">${currencyOptions}</select>
+              </div>
             </div>
             <div class="field">
               <label>${t("field_notes")}</label>
               <textarea id="f-notes">${p && p.notes ? escapeHtml(p.notes) : ""}</textarea>
             </div>
+            ${id ? `
+              <div class="field">
+                <label>${t("stage_notes_title")} — ${t("status_" + (p ? p.status : "planning"))}</label>
+                <textarea id="f-stage-note">${p && p.stage_notes && p.stage_notes[p.status] ? escapeHtml(p.stage_notes[p.status]) : ""}</textarea>
+                <div class="field-hint">${t("stage_notes_save")} ${t("save").toLowerCase()}</div>
+              </div>
+            ` : ""}
+            ${id ? `
+              <div class="field">
+                <label>${t("attachments_title")}</label>
+                <div class="attachments-list" id="attachments-list"><p style="color:var(--text-faint); font-size:12px;">…</p></div>
+                <div class="attach-drop" id="attach-drop">${t("attach_upload_hint")}</div>
+                <input type="file" id="attach-file-input" style="display:none;">
+              </div>
+            ` : ""}
             <div class="modal-actions">
               <button type="button" class="btn" id="modal-cancel">${t("cancel")}</button>
               <button type="submit" class="btn btn-primary">${t("save")}</button>
@@ -196,6 +233,18 @@
     document.getElementById("modal-backdrop").addEventListener("click", (e) => {
       if (e.target.id === "modal-backdrop") close();
     });
+
+    if (id) {
+      loadAttachments(id);
+      document.getElementById("attach-drop").addEventListener("click", () => {
+        document.getElementById("attach-file-input").click();
+      });
+      document.getElementById("attach-file-input").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        e.target.value = "";
+        if (file) uploadAttachment(id, file);
+      });
+    }
 
     document.getElementById("project-form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -213,11 +262,16 @@
         budget_total: parseFloat(document.getElementById("f-budget").value) || 0,
         amount_paid: parseFloat(document.getElementById("f-paid").value) || 0,
         payment_status: document.getElementById("f-payment-status").value,
+        currency: document.getElementById("f-currency").value,
         notes: document.getElementById("f-notes").value,
       };
       try {
         if (id) {
           await API.put(`/api/projects/${id}`, payload);
+          const stageNoteEl = document.getElementById("f-stage-note");
+          if (stageNoteEl && p) {
+            await API.put(`/api/projects/${id}/stage-notes`, { status: p.status, note: stageNoteEl.value });
+          }
         } else {
           await API.post("/api/projects", payload);
         }
@@ -228,6 +282,78 @@
         showToast(errorMessage(err), "error");
       }
     });
+  }
+
+  function fmtFileSize(bytes) {
+    if (!bytes) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  async function loadAttachments(projectId) {
+    const container = document.getElementById("attachments-list");
+    if (!container) return;
+    try {
+      const items = await API.get(`/api/projects/${projectId}/attachments`);
+      renderAttachmentsList(projectId, items);
+    } catch (e) {
+      container.innerHTML = "";
+    }
+  }
+
+  function renderAttachmentsList(projectId, items) {
+    const container = document.getElementById("attachments-list");
+    if (!container) return;
+    if (!items.length) {
+      container.innerHTML = `<p style="color:var(--text-faint); font-size:12px;">${t("no_attachments")}</p>`;
+      return;
+    }
+    container.innerHTML = items.map(a => `
+      <div class="attachment-row">
+        <div class="att-name">📎 ${escapeHtml(a.filename)} <span class="att-size">${fmtFileSize(a.size_bytes)}</span></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <a href="/api/attachments/${a.id}/download" target="_blank" style="font-size:12px; color:var(--scope); text-decoration:none;">${t("attach_download")}</a>
+          <button type="button" class="btn btn-danger btn-sm" style="padding:3px 8px;" data-remove-attachment="${a.id}">✕</button>
+        </div>
+      </div>
+    `).join("");
+
+    container.querySelectorAll("[data-remove-attachment]").forEach(btn => {
+      btn.addEventListener("click", () => removeAttachment(projectId, Number(btn.dataset.removeAttachment)));
+    });
+  }
+
+  async function uploadAttachment(projectId, file) {
+    const container = document.getElementById("attachments-list");
+    if (container) container.innerHTML = `<p style="color:var(--text-faint); font-size:12px;">${t("attach_uploading")}</p>`;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/projects/${projectId}/attachments`, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "request_failed");
+      await loadAttachments(projectId);
+      await loadData();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+      await loadAttachments(projectId);
+    }
+  }
+
+  async function removeAttachment(projectId, attachmentId) {
+    if (!confirm(t("confirm_delete_attachment"))) return;
+    try {
+      await API.del(`/api/attachments/${attachmentId}`);
+      await loadAttachments(projectId);
+      await loadData();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
   }
 
   async function deleteProject(id) {

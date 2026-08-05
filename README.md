@@ -21,11 +21,21 @@ La prima pornire, aplicația deschide automat interfața într-un tab de browser
 ## 🚀 Caracteristici
 
 - **Proiecte** cu tip (film, reclamă, nuntă, documentar, broadcast, videoclip muzical, corporate), locație de filmare, date de filmare/predare
-- **Etape de lucru** clare: planificare → filmare → montaj → colorizare → review → final → predat, cu o bară vizuală de tip "scope" pentru fiecare proiect
-- **Clienți** cu date de contact și numărul de proiecte asociate
+- **Etape de lucru** clare: planificare → filmare → montaj → colorizare → review → final → predat, cu buton **"Next Step"** care avansează automat proiectul și o bară vizuală de tip "scope" pentru fiecare proiect
+- **Notițe per etapă**: fiecare etapă (planificare, filmare, montaj...) are propriul câmp de notițe, păstrat separat
+- **Monedă selectabilă** (EUR / RON) per proiect, curs sau produs — totalurile din dashboard sunt calculate separat pe fiecare monedă, nu amestecate
+- **Clienți** cu date de contact și numărul de proiecte/cursuri asociate
+- **Cursuri 1-la-1**: subiect, dată și oră, durată, preț, status plată, status curs (programat/confirmat/finalizat/anulat), locație (online/fizic)
+- **Produse digitale**: DCTL-uri, PowerGrade, LUT-uri, presetări, șabloane — cu preț, versiune, compatibilitate, cale locală și link de descărcare
 - **Căi de fișiere** pentru RAW, montaj și export final
+- **Atașamente**: contracte, brief-uri sau referințe direct pe proiect
 - **Facturare simplă**: buget total, sumă încasată, status plată
-- **Panou general** cu statistici și predări apropiate
+- **Panou general** cu statistici, notificări (termene apropiate, facturi neplătite), predări și cursuri apropiate
+- **Calendar lunar** cu filmări și predări
+- **Rapoarte PDF** per proiect (printare directă din aplicație)
+- **Export/Import JSON** — backup și migrare între laptopuri
+- **Temă light/dark**, comutabilă instant
+- **Sincronizare opțională self-hosted** — între două instalări ale aplicației, fără server terț
 - **Multi-utilizator local**: fiecare cont își are propriile date, pe același laptop
 - **Interfață RO / EN / ES**
 - **100% local și gratuit**, open-source (MIT)

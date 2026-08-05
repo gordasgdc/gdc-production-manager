@@ -59,6 +59,8 @@ def get_or_create_secret_key(data_dir: str) -> str:
 
 DATA_DIR = get_data_dir()
 DATABASE_PATH = os.path.join(DATA_DIR, "gdc_production_manager.db")
+ATTACHMENTS_DIR = os.path.join(DATA_DIR, "attachments")
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 
 class Config:

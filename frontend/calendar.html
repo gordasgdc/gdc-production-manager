@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager — Calendar</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell"></div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  let ALL_PROJECTS = [];
+  let VIEW_YEAR, VIEW_MONTH; // VIEW_MONTH is 0-indexed
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function monthLabel(year, month) {
+    const d = new Date(year, month, 1);
+    return d.toLocaleDateString(CURRENT_LANG === "en" ? "en-US" : CURRENT_LANG === "es" ? "es-ES" : "ro-RO", {
+      month: "long", year: "numeric",
+    });
+  }
+
+  function dowLabels() {
+    const base = new Date(2026, 0, 5); // a Monday
+    const fmt = new Intl.DateTimeFormat(CURRENT_LANG === "en" ? "en-US" : CURRENT_LANG === "es" ? "es-ES" : "ro-RO", { weekday: "short" });
+    const labels = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      labels.push(fmt.format(d));
+    }
+    return labels;
+  }
+
+  function renderPage() {
+    const main = document.getElementById("main-content");
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1>${t("calendar_title")}</h1>
+          <p>${t("calendar_sub")}</p>
+        </div>
+        <div class="cal-nav">
+          <button class="btn btn-ghost btn-sm" id="cal-prev">‹</button>
+          <div class="cal-month-label" id="cal-month-label"></div>
+          <button class="btn btn-ghost btn-sm" id="cal-next">›</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="cal-dow-row"></div>
+      <div class="cal-grid" id="cal-grid" style="margin-top:6px;"></div>
+    `;
+
+    document.getElementById("cal-prev").addEventListener("click", () => shiftMonth(-1));
+    document.getElementById("cal-next").addEventListener("click", () => shiftMonth(1));
+
+    document.getElementById("cal-dow-row").innerHTML =
+      dowLabels().map(l => `<div class="cal-dow">${l}</div>`).join("");
+  }
+
+  function shiftMonth(delta) {
+    VIEW_MONTH += delta;
+    if (VIEW_MONTH < 0) { VIEW_MONTH = 11; VIEW_YEAR--; }
+    if (VIEW_MONTH > 11) { VIEW_MONTH = 0; VIEW_YEAR++; }
+    renderGrid();
+  }
+
+  function eventsByDate() {
+    const map = {};
+    ALL_PROJECTS.forEach(p => {
+      if (p.shoot_date) {
+        (map[p.shoot_date] = map[p.shoot_date] || []).push({ kind: "shoot", project: p });
+      }
+      if (p.delivery_date) {
+        (map[p.delivery_date] = map[p.delivery_date] || []).push({ kind: "delivery", project: p });
+      }
+    });
+    return map;
+  }
+
+  function renderGrid() {
+    document.getElementById("cal-month-label").textContent = monthLabel(VIEW_YEAR, VIEW_MONTH);
+
+    const firstOfMonth = new Date(VIEW_YEAR, VIEW_MONTH, 1);
+    // Monday-first grid: JS getDay() is 0=Sun..6=Sat, convert to 0=Mon..6=Sun
+    const startOffset = (firstOfMonth.getDay() + 6) % 7;
+    const gridStart = new Date(VIEW_YEAR, VIEW_MONTH, 1 - startOffset);
+
+    const events = eventsByDate();
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    let cellsHtml = "";
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(gridStart);
+      d.setDate(gridStart.getDate() + i);
+      const iso = d.toISOString().slice(0, 10);
+      const isOutside = d.getMonth() !== VIEW_MONTH;
+      const isToday = iso === todayStr;
+      const dayEvents = events[iso] || [];
+
+      cellsHtml += `
+        <div class="cal-cell ${isOutside ? "cal-outside" : ""} ${isToday ? "cal-today" : ""}">
+          <div class="cal-daynum">${d.getDate()}</div>
+          ${dayEvents.map(ev => `
+            <div class="cal-event ${ev.kind === "shoot" ? "cal-shoot" : "cal-delivery"}" title="${escapeHtml(ev.project.title)} — ${ev.kind === "shoot" ? t("cal_shoot") : t("cal_delivery")}">
+              ${ev.kind === "shoot" ? "🎬" : "📦"} ${escapeHtml(ev.project.title)}
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    document.getElementById("cal-grid").innerHTML = cellsHtml;
+  }
+
+  requireAuth(async (user) => {
+    renderShell("calendar.html", user);
+    renderPage();
+    const today = new Date();
+    VIEW_YEAR = today.getFullYear();
+    VIEW_MONTH = today.getMonth();
+    try {
+      ALL_PROJECTS = await API.get("/api/projects");
+      renderGrid();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  });
+</script>
+</body>
+</html>

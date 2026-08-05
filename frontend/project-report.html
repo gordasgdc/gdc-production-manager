@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager — Report</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{ background: var(--bg); }
+  .report-wrap{ max-width: 760px; margin: 0 auto; padding: 36px 24px 80px; }
+  .report-page{
+    background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius-lg);
+    padding: 40px;
+  }
+  .report-topbar{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom: 24px;
+  }
+  .report-head{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    border-bottom: 1px solid var(--border-soft); padding-bottom: 20px; margin-bottom: 24px;
+  }
+  .report-head .brand-mark{
+    width:34px; height:34px; border-radius:8px;
+    background:linear-gradient(135deg, var(--tally), var(--scope));
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#0d0f14; font-family: var(--font-display);
+  }
+  .report-title{ font-size: 22px; margin: 4px 0 0; }
+  .report-meta-line{ color: var(--text-faint); font-size:12px; font-family: var(--font-mono); }
+  .report-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; margin-bottom: 26px; }
+  .report-field .k{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); font-family: var(--font-mono); margin-bottom:4px; }
+  .report-field .v{ font-size:14px; }
+  .report-section-title{
+    font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint);
+    font-family: var(--font-mono); margin: 24px 0 10px; border-top: 1px solid var(--border-soft); padding-top:18px;
+  }
+  .report-notes{ font-size:13.5px; line-height:1.6; white-space:pre-wrap; }
+  @media print {
+    body{ background:#fff; }
+    .report-wrap{ padding:0; max-width:none; }
+    .report-page{ border:none; border-radius:0; padding:0; }
+    .sidebar, .no-print{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="report-wrap">
+  <div class="report-topbar no-print">
+    <a href="projects.html" class="btn btn-ghost btn-sm">← <span data-t="cancel">Renunță</span></a>
+    <button class="btn btn-primary btn-sm" id="print-btn">🖨️ <span data-t="print_save_pdf">Printează / Salvează PDF</span></button>
+  </div>
+
+  <div class="report-page" id="report-content">
+    <p style="color:var(--text-faint);">Se încarcă…</p>
+  </div>
+</div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function fieldBlock(label, value) {
+    return `<div class="report-field"><div class="k">${label}</div><div class="v">${value}</div></div>`;
+  }
+
+  function renderReport(p) {
+    document.title = `GDC Production Manager — ${p.title}`;
+    applyStaticTranslations();
+
+    const outstanding = Math.max((p.budget_total || 0) - (p.amount_paid || 0), 0);
+
+    document.getElementById("report-content").innerHTML = `
+      <div class="report-head">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="brand-mark">G</div>
+          <div>
+            <h1 class="report-title">${escapeHtml(p.title)}</h1>
+            <div class="report-meta-line">${t("report_generated_on")} ${fmtDate(new Date().toISOString().slice(0,10))}</div>
+          </div>
+        </div>
+        ${statusPillHtml(p.status)}
+      </div>
+
+      <div class="report-grid">
+        ${fieldBlock(t("field_type"), t("type_" + p.project_type))}
+        ${fieldBlock(t("report_client"), p.client_name ? escapeHtml(p.client_name) : "—")}
+        ${fieldBlock(t("field_location"), p.shoot_location ? escapeHtml(p.shoot_location) : "—")}
+        ${fieldBlock(t("report_status"), t("status_" + p.status))}
+        ${fieldBlock(t("field_shoot_date"), fmtDate(p.shoot_date))}
+        ${fieldBlock(t("field_delivery_date"), fmtDate(p.delivery_date))}
+      </div>
+
+      <div class="report-section-title">${t("field_payment_status")}</div>
+      <div class="report-grid">
+        ${fieldBlock(t("report_budget"), fmtMoney(p.budget_total))}
+        ${fieldBlock(t("report_paid"), fmtMoney(p.amount_paid))}
+        ${fieldBlock(t("report_outstanding"), fmtMoney(outstanding))}
+        ${fieldBlock(t("field_payment_status"), t("pay_" + p.payment_status))}
+      </div>
+
+      ${(p.path_raw || p.path_edit || p.path_export) ? `
+        <div class="report-section-title">${t("field_path_raw")} / ${t("field_path_edit")} / ${t("field_path_export")}</div>
+        <div class="report-grid">
+          ${p.path_raw ? fieldBlock(t("field_path_raw"), escapeHtml(p.path_raw)) : ""}
+          ${p.path_edit ? fieldBlock(t("field_path_edit"), escapeHtml(p.path_edit)) : ""}
+          ${p.path_export ? fieldBlock(t("field_path_export"), escapeHtml(p.path_export)) : ""}
+        </div>
+      ` : ""}
+
+      ${p.notes ? `
+        <div class="report-section-title">${t("field_notes")}</div>
+        <div class="report-notes">${escapeHtml(p.notes)}</div>
+      ` : ""}
+    `;
+  }
+
+  document.getElementById("print-btn").addEventListener("click", () => window.print());
+
+  requireAuth(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (!id) {
+      document.getElementById("report-content").innerHTML = `<p>Missing project id.</p>`;
+      return;
+    }
+    try {
+      const p = await API.get(`/api/projects/${id}`);
+      renderReport(p);
+    } catch (e) {
+      document.getElementById("report-content").innerHTML = `<p>${errorMessage(e)}</p>`;
+    }
+  });
+</script>
+</body>
+</html>

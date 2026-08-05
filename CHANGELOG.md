@@ -2,6 +2,25 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## [Unreleased]
+
+### Added
+- **Courses module**: 1-on-1 training sessions with topic, date/time, duration, price, payment status, course status, and location; linked to clients
+- **Digital products module**: DCTLs, PowerGrades, LUTs, presets and templates, with price, version, compatibility, file path and download link
+- **Selectable currency (EUR/RON)** per project, course and product, with a default set per user account; dashboard totals are tracked separately per currency rather than mixed together
+- **"Next Step" button** to advance a project to the next pipeline stage in one click
+- **Per-stage notes** on projects — each pipeline stage keeps its own note
+- Dashboard: courses this week, total courses, total products, course revenue (current month, per currency), product revenue (total, per currency), upcoming courses
+- Calendar page: monthly view of shoots and deliveries
+- Settings page: theme, data export/import, and self-hosted sync configuration
+- Light/dark theme toggle, persisted per account
+- Notifications for upcoming/overdue deadlines and outstanding payments
+- Project attachments (contracts, briefs, references) stored locally per project
+- Export/Import full data snapshot as JSON
+- Optional self-hosted sync between two instances of the app (push/pull, shared-secret token)
+- Per-project PDF report (print-to-PDF from a dedicated print-friendly page)
+- Presentation site (`docs/index.html`) redesigned: hero, about, features, how-it-works, roadmap, download, footer — RO/EN/ES, responsive, scroll-reveal animations
+
 ## [1.0.0] — Unreleased
 
 First public version.

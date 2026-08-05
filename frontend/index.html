@@ -20,6 +20,13 @@
           <h1>${t("dashboard_title")}</h1>
           <p>${t("dashboard_sub")}</p>
         </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="export-btn">⬇️ ${t("export_data")}</button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+            ⬆️ ${t("import_data")}
+            <input type="file" id="import-input" accept="application/json" style="display:none;">
+          </label>
+        </div>
       </div>
 
       <div class="stat-grid">
@@ -37,8 +44,32 @@
         </div>
         <div class="stat-card">
           <div class="label">${t("stat_outstanding")}</div>
-          <div class="value accent-tally">${fmtMoney(data.outstanding)}</div>
+          <div class="value accent-tally">${fmtMoney(data.outstanding, data.primary_currency)}</div>
         </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="label">${t("stat_courses_week")}</div>
+          <div class="value accent-amber">${data.courses_this_week}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">${t("stat_courses_total")}</div>
+          <div class="value">${data.total_courses}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">${t("stat_products_total")}</div>
+          <div class="value">${data.total_products}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">${t("stat_course_revenue")}</div>
+          <div class="value accent-scope">${formatByCurrencyMap(data.course_revenue_this_month_by_currency)}</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:14px; font-size:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono);">${t("notifications_title")}</h3>
+        <div class="notif-list" id="notif-list"></div>
       </div>
 
       <div class="card" style="margin-bottom:22px;">
@@ -46,11 +77,32 @@
         ${pipelineHtml(data.by_status)}
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:22px;">
         <h3 style="margin-bottom:14px; font-size:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono);">${t("upcoming_deliveries")}</h3>
         <div class="list" id="upcoming-list"></div>
       </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:14px; font-size:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono);">${t("upcoming_courses")}</h3>
+        <div class="list" id="upcoming-courses-list"></div>
+      </div>
     `;
+
+    const courseList = document.getElementById("upcoming-courses-list");
+    if (!data.upcoming_courses.length) {
+      courseList.innerHTML = `<p style="color:var(--text-faint); font-size:13px;">${t("no_upcoming_courses")}</p>`;
+    } else {
+      courseList.innerHTML = data.upcoming_courses.map(c => `
+        <div class="row-card" style="grid-template-columns: 1.6fr 1fr 1fr;">
+          <div>
+            <div class="row-title">${escapeHtml(c.topic)}</div>
+            <div class="row-sub">${c.client_name ? escapeHtml(c.client_name) : ""}</div>
+          </div>
+          <div class="row-meta mono">${fmtDate(c.date)} ${c.time ? "· " + c.time : ""}</div>
+          <div class="row-meta mono">${fmtMoney(c.price, c.currency)}</div>
+        </div>
+      `).join("");
+    }
 
     const list = document.getElementById("upcoming-list");
     if (!data.upcoming_deliveries.length) {
@@ -67,12 +119,80 @@
         </div>
       `).join("");
     }
+
+    document.getElementById("export-btn").addEventListener("click", exportData);
+    document.getElementById("import-input").addEventListener("change", importData);
+
+    loadNotifications();
+  }
+
+  async function loadNotifications() {
+    const container = document.getElementById("notif-list");
+    try {
+      const data = await API.get("/api/notifications");
+      const items = data.notifications || [];
+      if (!items.length) {
+        container.innerHTML = `<p style="color:var(--text-faint); font-size:13px;">${t("no_notifications")}</p>`;
+      } else {
+        container.innerHTML = items.map(renderNotifItem).join("");
+      }
+    } catch (e) {
+      container.innerHTML = "";
+    }
+  }
+
+  async function exportData() {
+    try {
+      const data = await API.get("/api/export");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `gdc-production-manager-export-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast(t("export_success"));
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function importData(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!confirm(t("import_confirm"))) return;
+
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if (!payload || (!payload.clients && !payload.projects)) {
+        showToast(t("import_invalid_file"), "error");
+        return;
+      }
+      const result = await API.post("/api/import", payload);
+      showToast(tf("import_success", { clients: result.imported_clients, projects: result.imported_projects }));
+      const data = await API.get("/api/dashboard");
+      renderDashboard(data);
+    } catch (err) {
+      showToast(t("import_invalid_file"), "error");
+    }
   }
 
   function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str || "";
     return div.innerHTML;
+  }
+
+  function formatByCurrencyMap(map) {
+    const entries = Object.entries(map || {});
+    if (!entries.length) return "—";
+    return entries.map(([cur, amount]) => fmtMoney(amount, cur)).join(" · ");
   }
 
   requireAuth(async (user) => {

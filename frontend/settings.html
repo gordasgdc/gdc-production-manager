@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager — Settings</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell"></div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  let CURRENT_USER_STATE = null;
+
+  function renderPage(user) {
+    CURRENT_USER_STATE = user;
+    const main = document.getElementById("main-content");
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1>${t("settings_title")}</h1>
+          <p>${t("settings_sub")}</p>
+        </div>
+      </div>
+
+      <div class="card settings-section">
+        <h3>${t("settings_data_section")}</h3>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">${t("export_data")}</div>
+            <div class="settings-hint">JSON — clienți, proiecte, șabloane</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="export-btn">⬇️ ${t("export_data")}</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">${t("import_data")}</div>
+            <div class="settings-hint">${t("import_confirm")}</div>
+          </div>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+            ⬆️ ${t("import_data")}
+            <input type="file" id="import-input" accept="application/json" style="display:none;">
+          </label>
+        </div>
+      </div>
+
+      <div class="card settings-section">
+        <h3>${t("settings_sync_section")}</h3>
+        <p class="settings-hint" style="margin-bottom:16px;">${t("sync_hint")}</p>
+        <div class="field">
+          <label>${t("sync_remote_url")}</label>
+          <input type="text" id="sync-url" placeholder="http://192.168.1.20:5175" value="${user.sync_remote_url ? escapeHtml(user.sync_remote_url) : ""}">
+        </div>
+        <div class="field">
+          <label>${t("sync_token")}</label>
+          <input type="text" id="sync-token" placeholder="••••••••">
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+          <button class="btn" id="sync-save-btn">${t("sync_save")}</button>
+          <button class="btn btn-primary" id="sync-push-btn">${t("sync_push")}</button>
+          <button class="btn" id="sync-pull-btn">${t("sync_pull")}</button>
+        </div>
+        <div class="sync-status" id="sync-status"></div>
+      </div>
+    `;
+
+    updateSyncStatus(user);
+
+    document.getElementById("export-btn").addEventListener("click", exportData);
+    document.getElementById("import-input").addEventListener("change", importData);
+    document.getElementById("sync-save-btn").addEventListener("click", saveSyncSettings);
+    document.getElementById("sync-push-btn").addEventListener("click", () => runSync("push"));
+    document.getElementById("sync-pull-btn").addEventListener("click", () => runSync("pull"));
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function updateSyncStatus(user) {
+    const el = document.getElementById("sync-status");
+    const last = user.last_synced_at ? fmtDate(user.last_synced_at.slice(0, 10)) : t("sync_never");
+    const configured = user.sync_configured ? "" : ` — ${t("sync_not_configured")}`;
+    el.textContent = `${t("sync_last")}: ${last}${configured}`;
+  }
+
+  async function saveSyncSettings() {
+    try {
+      const result = await API.post("/api/auth/sync-settings", {
+        sync_remote_url: document.getElementById("sync-url").value.trim(),
+        sync_token: document.getElementById("sync-token").value.trim(),
+      });
+      CURRENT_USER_STATE = result.user;
+      updateSyncStatus(result.user);
+      showToast(t("saved"));
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function runSync(direction) {
+    try {
+      const result = await API.post(`/api/sync/${direction}`);
+      showToast(direction === "push" ? t("sync_success_push") : t("sync_success_pull"));
+      const status = await API.get("/api/auth/status");
+      updateSyncStatus(status.user);
+    } catch (e) {
+      showToast(t("sync_failed"), "error");
+    }
+  }
+
+  async function exportData() {
+    try {
+      const data = await API.get("/api/export");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `gdc-production-manager-export-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast(t("export_success"));
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function importData(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!confirm(t("import_confirm"))) return;
+
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if (!payload || (!payload.clients && !payload.projects)) {
+        showToast(t("import_invalid_file"), "error");
+        return;
+      }
+      const result = await API.post("/api/import", payload);
+      showToast(tf("import_success", { clients: result.imported_clients, projects: result.imported_projects }));
+    } catch (err) {
+      showToast(t("import_invalid_file"), "error");
+    }
+  }
+
+  requireAuth((user) => {
+    renderShell("settings.html", user);
+    renderPage(user);
+  });
+</script>
+</body>
+</html>

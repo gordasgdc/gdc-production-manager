@@ -1,5 +1,15 @@
 // GDC Production Manager — shared frontend logic
 
+let CURRENT_THEME = localStorage.getItem("gdc_theme") || "dark";
+
+function applyTheme(theme) {
+  CURRENT_THEME = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", CURRENT_THEME);
+  localStorage.setItem("gdc_theme", CURRENT_THEME);
+}
+
+applyTheme(CURRENT_THEME);
+
 const API = {
   async _call(method, url, body) {
     const opts = {
@@ -45,11 +55,16 @@ function errorMessage(err) {
   return t("error_generic");
 }
 
-function fmtMoney(value) {
+const CURRENCY_SYMBOLS = { EUR: "€", RON: "lei" };
+
+function fmtMoney(value, currency) {
   const n = Number(value || 0);
-  return n.toLocaleString(CURRENT_LANG === "en" ? "en-US" : CURRENT_LANG === "es" ? "es-ES" : "ro-RO", {
+  const formatted = n.toLocaleString(CURRENT_LANG === "en" ? "en-US" : CURRENT_LANG === "es" ? "es-ES" : "ro-RO", {
     maximumFractionDigits: 0,
   });
+  if (!currency) return formatted;
+  const symbol = CURRENCY_SYMBOLS[currency] || currency;
+  return currency === "RON" ? `${formatted} ${symbol}` : `${symbol}${formatted}`;
 }
 
 function fmtDate(iso) {
@@ -92,12 +107,47 @@ function pipelineHtml(byStatus) {
   `;
 }
 
+function renderNotifItem(n) {
+  let cls = "notif-item", icon = "ℹ️", text = "";
+  if (n.type === "deadline_overdue") {
+    cls += " notif-overdue"; icon = "⚠️";
+    text = `<strong>${escapeHtmlShared(n.project_title)}</strong> — ${tf("notif_deadline_overdue", { days: n.days })}`;
+  } else if (n.type === "deadline_soon") {
+    cls += " notif-soon"; icon = "⏰";
+    const label = n.days === 0 ? t("notif_deadline_today") : tf("notif_deadline_soon", { days: n.days });
+    text = `<strong>${escapeHtmlShared(n.project_title)}</strong> — ${label}`;
+  } else if (n.type === "payment_outstanding") {
+    cls += " notif-payment"; icon = "💶";
+    text = `<strong>${escapeHtmlShared(n.project_title)}</strong> — ${tf("notif_payment_outstanding", { amount: fmtMoney(n.amount) })}`;
+  }
+  return `<div class="${cls}"><span class="notif-icon">${icon}</span><span class="notif-text">${text}</span></div>`;
+}
+
+function escapeHtmlShared(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+async function fetchNotificationCount() {
+  try {
+    const data = await API.get("/api/notifications");
+    return (data.notifications || []).length;
+  } catch (e) {
+    return 0;
+  }
+}
+
 // ---------------------------------------------------------- app shell ----
 
 const NAV_ITEMS = [
   { href: "index.html", key: "nav_dashboard", icon: "M3 13h4v7H3zM10 4h4v16h-4zM17 9h4v11h-4z" },
   { href: "projects.html", key: "nav_projects", icon: "M4 5h16v3H4zM4 10h16v9H4z" },
   { href: "clients.html", key: "nav_clients", icon: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0" },
+  { href: "courses.html", key: "nav_courses", icon: "M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V4H6.5A2.5 2.5 0 004 6.5v13z" },
+  { href: "products.html", key: "nav_products", icon: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" },
+  { href: "calendar.html", key: "nav_calendar", icon: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" },
+  { href: "settings.html", key: "nav_settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM4 12h2m12 0h2M12 4v2m0 12v2M6.3 6.3l1.4 1.4m8.6 8.6l1.4 1.4M6.3 17.7l1.4-1.4m8.6-8.6l1.4-1.4" },
 ];
 
 function renderShell(activeHref, user) {
@@ -122,6 +172,10 @@ function renderShell(activeHref, user) {
       </div>
       <nav>${nav}</nav>
       <div class="sidebar-footer">
+        <button class="theme-toggle" id="theme-toggle-btn">
+          <span id="theme-toggle-label">${CURRENT_THEME === "light" ? t("theme_light") : t("theme_dark")}</span>
+          <span>${CURRENT_THEME === "light" ? "☀️" : "🌙"}</span>
+        </button>
         <div class="lang-switch">
           ${["ro", "en", "es"].map(l => `<button class="lang-btn ${CURRENT_LANG === l ? "active" : ""}" data-lang="${l}">${l.toUpperCase()}</button>`).join("")}
         </div>
@@ -134,6 +188,14 @@ function renderShell(activeHref, user) {
     </aside>
     <main class="main" id="main-content"></main>
   `;
+
+  document.getElementById("theme-toggle-btn").addEventListener("click", async () => {
+    const next = CURRENT_THEME === "light" ? "dark" : "light";
+    applyTheme(next);
+    document.getElementById("theme-toggle-label").textContent = next === "light" ? t("theme_light") : t("theme_dark");
+    document.getElementById("theme-toggle-btn").querySelector("span:last-child").textContent = next === "light" ? "☀️" : "🌙";
+    try { await API.post("/api/auth/theme", { theme: next }); } catch (e) {}
+  });
 
   shell.querySelectorAll(".lang-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -165,6 +227,7 @@ async function requireAuth(onReady) {
       return;
     }
     setLang(data.user.language || CURRENT_LANG);
+    applyTheme(data.user.theme || CURRENT_THEME);
     onReady(data.user);
   } catch (e) {
     window.location.href = "login.html";

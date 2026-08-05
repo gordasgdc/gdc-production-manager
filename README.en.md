@@ -21,11 +21,21 @@ On first launch the app opens its interface in a local browser tab (`http://127.
 ## 🚀 Features
 
 - **Projects** with type (film, commercial, wedding, documentary, broadcast, music video, corporate), shoot location, shoot/delivery dates
-- **Clear production stages**: planning → filming → editing → coloring → review → final → delivered, shown as a scope-style progress bar on every project
-- **Clients** with contact details and linked project count
+- **Clear production stages**: planning → filming → editing → coloring → review → final → delivered, with a **"Next Step"** button that advances the project automatically, shown as a scope-style progress bar on every project
+- **Per-stage notes**: every stage (planning, filming, editing…) keeps its own separate note field
+- **Selectable currency** (EUR / RON) per project, course or product — dashboard totals are computed separately per currency, never mixed together
+- **Clients** with contact details and linked project/course count
+- **1-on-1 courses**: topic, date & time, duration, price, payment status, course status (scheduled/confirmed/completed/cancelled), location (online/in-person)
+- **Digital products**: DCTLs, PowerGrades, LUTs, presets, templates — with price, version, compatibility, local path and download link
 - **File paths** for RAW footage, edit, and final export
+- **Attachments**: contracts, briefs or references right on a project
 - **Simple invoicing**: total budget, amount paid, payment status
-- **Dashboard** with stats and upcoming deliveries
+- **Dashboard** with stats, notifications (upcoming deadlines, unpaid invoices), upcoming deliveries and courses
+- **Monthly calendar** of shoots and deliveries
+- **PDF reports** per project (print straight from the app)
+- **Export/Import JSON** — backup and migration between laptops
+- **Light/dark theme**, switchable instantly
+- **Optional self-hosted sync** — between two installs of the app, no third-party server
 - **Local multi-user**: each account keeps its own data on the same laptop
 - **RO / EN / ES interface**
 - **100% local and free**, open-source (MIT)

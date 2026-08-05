@@ -99,3 +99,43 @@ def set_language():
     user.language = language
     db.session.commit()
     return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.route("/api/auth/theme", methods=["POST"])
+@login_required
+def set_theme():
+    data = request.get_json(silent=True) or {}
+    theme = data.get("theme")
+    if theme not in ("dark", "light"):
+        return jsonify({"error": "invalid_theme"}), 400
+    user = current_user()
+    user.theme = theme
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.route("/api/auth/currency", methods=["POST"])
+@login_required
+def set_currency():
+    data = request.get_json(silent=True) or {}
+    currency = data.get("currency")
+    if currency not in ("EUR", "RON"):
+        return jsonify({"error": "invalid_currency"}), 400
+    user = current_user()
+    user.currency = currency
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.route("/api/auth/sync-settings", methods=["POST"])
+@login_required
+def set_sync_settings():
+    """Stores the address of another GDC Production Manager instance this
+    one can push/pull a full data snapshot to/from. Nothing is sent anywhere
+    until the person explicitly triggers a sync."""
+    data = request.get_json(silent=True) or {}
+    user = current_user()
+    user.sync_remote_url = (data.get("sync_remote_url") or "").strip() or None
+    user.sync_token = (data.get("sync_token") or "").strip() or None
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})

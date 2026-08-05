@@ -34,6 +34,13 @@ PROJECT_TYPES = [
 
 PAYMENT_STATUSES = ["unpaid", "partial", "paid"]
 
+COURSE_STATUSES = ["scheduled", "confirmed", "completed", "cancelled"]
+COURSE_LOCATIONS = ["online", "in_person"]
+
+PRODUCT_TYPES = ["dctl", "powergrade", "lut", "preset", "template", "other"]
+
+CURRENCIES = ["EUR", "RON"]
+
 
 class User(db.Model):
     __tablename__ = "users"
@@ -43,6 +50,15 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     display_name = db.Column(db.String(120), nullable=True)
     language = db.Column(db.String(5), nullable=False, default="ro")
+    theme = db.Column(db.String(10), nullable=False, default="dark")
+    currency = db.Column(db.String(3), nullable=False, default="EUR")
+
+    # Optional self-hosted sync: point this instance at another running
+    # GDC Production Manager instance to push/pull a full data snapshot.
+    sync_remote_url = db.Column(db.String(400), nullable=True)
+    sync_token = db.Column(db.String(120), nullable=True)
+    last_synced_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     clients = db.relationship(
@@ -53,6 +69,12 @@ class User(db.Model):
     )
     templates = db.relationship(
         "WorkflowTemplate", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    courses = db.relationship(
+        "Course", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    products = db.relationship(
+        "DigitalProduct", backref="owner", lazy=True, cascade="all, delete-orphan"
     )
 
     def set_password(self, password: str) -> None:
@@ -67,6 +89,11 @@ class User(db.Model):
             "username": self.username,
             "display_name": self.display_name,
             "language": self.language,
+            "theme": self.theme,
+            "currency": self.currency,
+            "sync_remote_url": self.sync_remote_url,
+            "sync_configured": bool(self.sync_remote_url and self.sync_token),
+            "last_synced_at": self.last_synced_at.isoformat() if self.last_synced_at else None,
         }
 
 
@@ -84,6 +111,7 @@ class Client(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     projects = db.relationship("Project", backref="client", lazy=True)
+    courses = db.relationship("Course", backref="client", lazy=True)
 
     def to_dict(self) -> dict:
         return {
@@ -94,6 +122,7 @@ class Client(db.Model):
             "phone": self.phone,
             "notes": self.notes,
             "project_count": len(self.projects),
+            "course_count": len(self.courses),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -116,6 +145,30 @@ class WorkflowTemplate(db.Model):
             "name": self.name,
             "project_type": self.project_type,
             "stages": self.stages.split(",") if self.stages else [],
+        }
+
+
+class Attachment(db.Model):
+    """A file attached to a project (contract, brief, reference), stored
+    locally under the app's per-user data directory — never uploaded anywhere."""
+
+    __tablename__ = "attachments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
+
+    filename = db.Column(db.String(300), nullable=False)
+    stored_name = db.Column(db.String(120), nullable=False)  # name on disk
+    size_bytes = db.Column(db.Integer, nullable=True)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "filename": self.filename,
+            "size_bytes": self.size_bytes,
+            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None,
         }
 
 
@@ -144,14 +197,21 @@ class Project(db.Model):
     budget_total = db.Column(db.Float, nullable=True, default=0)
     amount_paid = db.Column(db.Float, nullable=True, default=0)
     payment_status = db.Column(db.String(20), nullable=False, default="unpaid")
+    currency = db.Column(db.String(3), nullable=False, default="EUR")
 
     notes = db.Column(db.Text, nullable=True)
+    # One free-text note per pipeline stage, e.g. {"planning": "...", "filming": "...", ...}
+    stage_notes = db.Column(db.JSON, nullable=True, default=dict)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def to_dict(self) -> dict:
-        return {
+    attachments = db.relationship(
+        "Attachment", backref="project", lazy=True, cascade="all, delete-orphan"
+    )
+
+    def to_dict(self, include_attachments=False) -> dict:
+        data = {
             "id": self.id,
             "title": self.title,
             "project_type": self.project_type,
@@ -170,7 +230,101 @@ class Project(db.Model):
             "budget_total": self.budget_total,
             "amount_paid": self.amount_paid,
             "payment_status": self.payment_status,
+            "currency": self.currency,
             "notes": self.notes,
+            "stage_notes": self.stage_notes or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "attachment_count": len(self.attachments),
+        }
+        if include_attachments:
+            data["attachments"] = [a.to_dict() for a in self.attachments]
+        return data
+
+
+class Course(db.Model):
+    """A 1-on-1 training session (e.g. color grading coaching)."""
+
+    __tablename__ = "courses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=True)
+
+    topic = db.Column(db.String(200), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    time = db.Column(db.String(5), nullable=True)  # "HH:MM"
+    duration_minutes = db.Column(db.Integer, nullable=True, default=60)
+
+    price = db.Column(db.Float, nullable=True, default=0)
+    currency = db.Column(db.String(3), nullable=False, default="EUR")
+    paid = db.Column(db.Boolean, nullable=False, default=False)
+    payment_date = db.Column(db.Date, nullable=True)
+
+    status = db.Column(db.String(20), nullable=False, default="scheduled")
+    location = db.Column(db.String(20), nullable=False, default="online")
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "client_id": self.client_id,
+            "client_name": self.client.name if self.client else None,
+            "topic": self.topic,
+            "date": self.date.isoformat() if self.date else None,
+            "time": self.time,
+            "duration_minutes": self.duration_minutes,
+            "price": self.price,
+            "currency": self.currency,
+            "paid": self.paid,
+            "payment_date": self.payment_date.isoformat() if self.payment_date else None,
+            "status": self.status,
+            "location": self.location,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class DigitalProduct(db.Model):
+    """A sellable digital asset: DCTL, PowerGrade, LUT pack, preset, template…"""
+
+    __tablename__ = "digital_products"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    name = db.Column(db.String(200), nullable=False)
+    product_type = db.Column(db.String(30), nullable=False, default="other")
+    description = db.Column(db.Text, nullable=True)
+
+    price = db.Column(db.Float, nullable=True, default=0)
+    currency = db.Column(db.String(3), nullable=False, default="EUR")
+    file_path = db.Column(db.String(500), nullable=True)
+    download_link = db.Column(db.String(500), nullable=True)
+    version = db.Column(db.String(30), nullable=True)
+    compatibility = db.Column(db.String(150), nullable=True)
+
+    units_sold = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "product_type": self.product_type,
+            "description": self.description,
+            "price": self.price,
+            "currency": self.currency,
+            "file_path": self.file_path,
+            "download_link": self.download_link,
+            "version": self.version,
+            "compatibility": self.compatibility,
+            "units_sold": self.units_sold,
+            "revenue": round((self.price or 0) * (self.units_sold or 0), 2),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -20,6 +20,7 @@ from config import Config, APP_VERSION, is_frozen
 from models import db
 from auth import auth_bp
 from routes import api_bp
+from sync import sync_bp
 
 
 def resource_path(*parts) -> str:
@@ -52,6 +53,7 @@ def create_app() -> Flask:
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(sync_bp)
 
     @app.route("/")
     def index():

@@ -21,11 +21,21 @@ Al iniciar por primera vez, la app abre su interfaz en una pestaña de navegador
 ## 🚀 Características
 
 - **Proyectos** con tipo (película, anuncio, boda, documental, broadcast, videoclip musical, corporativo), lugar de rodaje, fechas de rodaje/entrega
-- **Etapas de trabajo claras**: planificación → rodaje → montaje → etalonaje → revisión → final → entregado, mostradas como una barra de progreso al estilo scope en cada proyecto
-- **Clientes** con datos de contacto y número de proyectos asociados
+- **Etapas de trabajo claras**: planificación → rodaje → montaje → etalonaje → revisión → final → entregado, con un botón **"Next Step"** que avanza el proyecto automáticamente, mostradas como una barra de progreso al estilo scope en cada proyecto
+- **Notas por etapa**: cada etapa (planificación, rodaje, montaje…) guarda su propio campo de notas por separado
+- **Moneda seleccionable** (EUR / RON) por proyecto, curso o producto — los totales del panel se calculan por separado para cada moneda, nunca mezclados
+- **Clientes** con datos de contacto y número de proyectos/cursos asociados
+- **Cursos 1 a 1**: tema, fecha y hora, duración, precio, estado de pago, estado del curso (programado/confirmado/finalizado/cancelado), ubicación (en línea/presencial)
+- **Productos digitales**: DCTLs, PowerGrades, LUTs, presets, plantillas — con precio, versión, compatibilidad, ruta local y enlace de descarga
 - **Rutas de archivos** para RAW, montaje y exportación final
+- **Adjuntos**: contratos, briefs o referencias directamente en el proyecto
 - **Facturación simple**: presupuesto total, cantidad cobrada, estado de pago
-- **Panel** con estadísticas y próximas entregas
+- **Panel** con estadísticas, notificaciones (plazos próximos, facturas pendientes), próximas entregas y cursos
+- **Calendario mensual** de rodajes y entregas
+- **Informes PDF** por proyecto (imprime directamente desde la app)
+- **Exportar/Importar JSON** — copia de seguridad y migración entre portátiles
+- **Tema claro/oscuro**, cambio instantáneo
+- **Sincronización self-hosted opcional** — entre dos instalaciones de la app, sin servidor de terceros
 - **Multiusuario local**: cada cuenta guarda sus propios datos en el mismo portátil
 - **Interfaz en RO / EN / ES**
 - **100% local y gratis**, de código abierto (MIT)
