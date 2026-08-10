@@ -223,6 +223,22 @@
       <a class="btn btn-secondary" href="https://github.com/gordasgdc/gdc-production-manager/releases/latest" data-t="cta_download"></a>
     </div>
   </div>
+  <p style="text-align:center; color:var(--text-muted); font-size:13px; margin-top:22px;" data-t="guide_note"></p>
+</section>
+
+<section class="wrap" id="troubleshooting">
+  <div class="section-title">
+    <h2 data-t="tsh_title"></h2>
+    <p data-t="tsh_sub"></p>
+  </div>
+  <div class="grid" id="troubleshooting-grid"></div>
+</section>
+
+<section class="wrap" id="license">
+  <div class="section-title">
+    <h2 data-t="license_title"></h2>
+  </div>
+  <p style="max-width:70ch; color:var(--text-muted); font-size:14px;" data-t="license_text"></p>
 </section>
 
 <footer class="wrap">
@@ -254,6 +270,18 @@ const T = {
     mac_hint: "Dublu-click pe .pkg și urmează instalatorul.",
     win_hint: "Dublu-click pe .exe pentru a rula aplicația.",
     footer_line: "GDC Production Manager · gratuit și open-source (MIT) · realizat de Cristi Gordas",
+    guide_note: "Fiecare release include și un ghid PDF complet (instalare, funcționalități explicate, exemple, depanare), în română, engleză și spaniolă — disponibil în arhivă și în docs/guides din repository.",
+    tsh_title: "Probleme frecvente",
+    tsh_sub: "Cele mai comune întrebări, cu răspuns direct.",
+    license_title: "Licență",
+    license_text: "GDC Production Manager e licențiat MIT — gratuit, open-source, codul sursă complet disponibil pe GitHub. Aplicația folosește Flask și SQLAlchemy (licențe permisive BSD) și e distribuită prin PyInstaller.",
+    troubleshooting: [
+      ["🌐","Nu se deschide browserul automat","Verifică fereastra aplicației — adresa locală (http://127.0.0.1:xxxx) e afișată acolo. Copiaz-o manual într-un browser."],
+      ["💾","Am pierdut datele după reinstalare","Datele sunt locale, în SQLite. Fă export JSON periodic din Setări, mai ales înainte de o reinstalare majoră."],
+      ["🔔","Notificările native nu apar","Browserul cere permisiune explicită — verifică dacă ai acceptat-o. Notificările din aplicație funcționează oricum, independent."],
+      ["💶","Totalurile din dashboard arată ciudat","Se calculează separat pe EUR și RON, nu amestecate — verifică dacă ai proiecte în ambele monede."],
+      ["🔄","Sincronizarea între laptopuri nu merge","Necesită ca cele două instalări să comunice direct, de obicei pe aceeași rețea locală."],
+    ],
     pipeline: ["Planificare","Filmare","Montaj","Colorizare","Review","Final","Predat"],
     features: [
       ["📁","Proiecte","Fiecare proiect ține locația, clientul, bugetul și status-ul de plată la un loc."],
@@ -303,6 +331,18 @@ const T = {
     mac_hint: "Double-click the .pkg and follow the installer.",
     win_hint: "Double-click the .exe to run the app.",
     footer_line: "GDC Production Manager · free & open-source (MIT) · built by Cristi Gordas",
+    guide_note: "Every release also includes a complete PDF guide (installation, features explained, examples, troubleshooting), in Romanian, English, and Spanish — available in the archive and in docs/guides in the repository.",
+    tsh_title: "Common issues",
+    tsh_sub: "The most common questions, answered directly.",
+    license_title: "License",
+    license_text: "GDC Production Manager is MIT licensed — free, open-source, full source code available on GitHub. The app uses Flask and SQLAlchemy (permissive BSD licenses) and is distributed via PyInstaller.",
+    troubleshooting: [
+      ["🌐","Browser doesn't open automatically","Check the app window — the local address (http://127.0.0.1:xxxx) is shown there. Copy it manually into a browser."],
+      ["💾","Lost data after reinstalling","Data is local, in SQLite. Do periodic JSON exports from Settings, especially before a major reinstall."],
+      ["🔔","Native notifications don't show up","The browser requires explicit permission — check if you accepted it. In-app notifications work either way, independently."],
+      ["💶","Dashboard totals look off","They're calculated separately for EUR and RON, not mixed — check if you have projects in both currencies."],
+      ["🔄","Sync between laptops isn't working","Requires the two installations to communicate directly, usually on the same local network."],
+    ],
     pipeline: ["Planning","Filming","Editing","Coloring","Review","Final","Delivered"],
     features: [
       ["📁","Projects","Every project keeps location, client, budget and payment status together."],
@@ -352,6 +392,18 @@ const T = {
     mac_hint: "Haz doble clic en el .pkg y sigue el instalador.",
     win_hint: "Haz doble clic en el .exe para ejecutar la app.",
     footer_line: "GDC Production Manager · gratis y de código abierto (MIT) · creado por Cristi Gordas",
+    guide_note: "Cada versión incluye también una guía completa en PDF (instalación, funciones explicadas, ejemplos, solución de problemas), en rumano, inglés y español — disponible en el archivo y en docs/guides del repositorio.",
+    tsh_title: "Problemas frecuentes",
+    tsh_sub: "Las preguntas más comunes, con respuesta directa.",
+    license_title: "Licencia",
+    license_text: "GDC Production Manager está licenciado bajo MIT — gratuito, de código abierto, código fuente completo disponible en GitHub. La aplicación usa Flask y SQLAlchemy (licencias permisivas BSD) y se distribuye mediante PyInstaller.",
+    troubleshooting: [
+      ["🌐","El navegador no se abre automáticamente","Comprueba la ventana de la aplicación — la dirección local (http://127.0.0.1:xxxx) se muestra ahí. Cópiala manualmente en un navegador."],
+      ["💾","Perdí los datos tras reinstalar","Los datos son locales, en SQLite. Haz exportaciones JSON periódicas desde Ajustes, sobre todo antes de una reinstalación importante."],
+      ["🔔","Las notificaciones nativas no aparecen","El navegador requiere permiso explícito — comprueba si lo aceptaste. Las notificaciones en la app funcionan igualmente, de forma independiente."],
+      ["💶","Los totales del panel se ven raros","Se calculan por separado para EUR y RON, no mezclados — comprueba si tienes proyectos en ambas monedas."],
+      ["🔄","La sincronización entre portátiles no funciona","Requiere que las dos instalaciones se comuniquen directamente, normalmente en la misma red local."],
+    ],
     pipeline: ["Planificación","Rodaje","Montaje","Etalonaje","Revisión","Final","Entregado"],
     features: [
       ["📁","Proyectos","Cada proyecto reúne ubicación, cliente, presupuesto y estado de pago."],
@@ -422,6 +474,10 @@ function render() {
 
   document.getElementById("roadmap-grid").innerHTML = d.roadmap.map(r => `
     <div class="roadmap-item ${r[2] ? "done" : ""}"><strong>${r[0]}</strong>${r[1]}</div>
+  `).join("");
+
+  document.getElementById("troubleshooting-grid").innerHTML = d.troubleshooting.map(t => `
+    <div class="feature"><div class="icon">${t[0]}</div><h3>${t[1]}</h3><p>${t[2]}</p></div>
   `).join("");
 
   observeRevealTargets();
