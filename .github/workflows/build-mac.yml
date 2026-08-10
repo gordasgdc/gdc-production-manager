@@ -64,6 +64,7 @@ jobs:
           files: |
             dist/GDCProductionManager-mac.zip
             GDCProductionManager.pkg
+            docs/guides/*.pdf
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
