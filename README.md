@@ -40,7 +40,8 @@ La prima pornire, aplicația deschide automat interfața într-un tab de browser
 - **Sincronizare opțională self-hosted** — între două instalări ale aplicației, fără server terț
 - **Multi-utilizator local**: fiecare cont își are propriile date, pe același laptop
 - **Interfață RO / EN / ES**
-- **100% local și gratuit**, open-source (MIT)
+- **100% local**, cod sursă open-source (MIT) — 7 zile de probă gratuită, apoi activare pe viață (25€, o singură dată)
+- **Recuperare parolă cu cod de rezervă**, logare rapidă cu Touch ID / Windows Hello, verificare actualizări din aplicație
 
 ## 🛠️ Cerințe tehnice / stack
 

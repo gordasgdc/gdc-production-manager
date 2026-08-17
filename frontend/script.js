@@ -43,6 +43,33 @@ const API = {
   del(url) { return this._call("DELETE", url); },
 };
 
+// --- Iconite line-art minimale pentru pagina de Ajutor -----------------
+function helpSvgIcon(path) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+}
+const HELP_ICONS = {
+  folder: helpSvgIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>'),
+  steps: helpSvgIcon('<path d="M5 20V13"/><path d="M12 20V9"/><path d="M19 20V5"/>'),
+  note: helpSvgIcon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>'),
+  coins: helpSvgIcon('<circle cx="8" cy="10" r="5"/><circle cx="15" cy="15" r="5"/>'),
+  users: helpSvgIcon('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 8.5a3.2 3.2 0 0 1 0 6.2"/><path d="M18.5 20a5.8 5.8 0 0 0-3.3-5.3"/>'),
+  book: helpSvgIcon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'),
+  package: helpSvgIcon('<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>'),
+  checklist: helpSvgIcon('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M7 9l1.5 1.5L11 7"/><path d="M13 8.5h5"/><path d="M7 15l1.5 1.5L11 13"/><path d="M13 14.5h5"/>'),
+  bell: helpSvgIcon('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'),
+  calendar: helpSvgIcon('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>'),
+  fileText: helpSvgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/>'),
+  download: helpSvgIcon('<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/>'),
+  refresh: helpSvgIcon('<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>'),
+  key: helpSvgIcon('<circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3"/><path d="M17 6l3 3"/><path d="M14 9l2.5 2.5"/>'),
+  shield: helpSvgIcon('<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/>'),
+  fingerprint: helpSvgIcon('<path d="M12 3a7 7 0 0 1 7 7c0 3.5-1 6-1 9"/><path d="M12 3a7 7 0 0 0-7 7c0 2 .3 3.5.8 5"/><path d="M12 7a3 3 0 0 1 3 3c0 4-1.5 6-1.5 8"/><path d="M9.5 10a2.5 2.5 0 0 1 5 0c0 4.5-1.8 7-1.8 9"/><path d="M7 10c0 5 1 7.5 2.5 9.5"/>'),
+  tag: helpSvgIcon('<path d="M20.6 12.4L12.4 20.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1 0-2.8L10.8 2.6a2 2 0 0 1 1.4-.6H19a2 2 0 0 1 2 2v6.6a2 2 0 0 1-.4 1.4z"/><circle cx="15.5" cy="7.5" r="1.5"/>'),
+  globe: helpSvgIcon('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/>'),
+  moon: helpSvgIcon('<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>'),
+  database: helpSvgIcon('<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>'),
+};
+
 // --- WebAuthn (Touch ID / Windows Hello) helpers -----------------------
 // Codeaza/decodeaza intre ArrayBuffer (ce foloseste navigator.credentials)
 // si base64url (ce trimite/primeste backend-ul in JSON), exact schema
@@ -282,6 +309,7 @@ const NAV_ITEMS = [
   { href: "products.html", key: "nav_products", icon: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" },
   { href: "reminders.html", key: "nav_reminders", icon: "M12 8v4l3 3M12 22a2 2 0 002-2h-4a2 2 0 002 2zM18 8a6 6 0 10-12 0c0 6-2 8-2 8h16s-2-2-2-8z" },
   { href: "calendar.html", key: "nav_calendar", icon: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" },
+  { href: "help.html", key: "nav_help", icon: "M2 12a10 10 0 1 0 20 0 10 10 0 1 0 -20 0M9.09 9a3 3 0 015.83 1c0 2-3 2-3 3M12 17h.01" },
   { href: "settings.html", key: "nav_settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM4 12h2m12 0h2M12 4v2m0 12v2M6.3 6.3l1.4 1.4m8.6 8.6l1.4 1.4M6.3 17.7l1.4-1.4m8.6-8.6l1.4-1.4" },
 ];
 
