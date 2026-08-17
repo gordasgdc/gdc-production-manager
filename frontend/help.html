@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager — Ajutor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell" id="app-shell"></div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function renderPage(user) {
+    const d = TRANSLATIONS[CURRENT_LANG] || TRANSLATIONS.ro;
+    const main = document.getElementById("main-content");
+    main.innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1>${t("help_title")}</h1>
+          <p>${t("help_intro")}</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:14px;">${t("help_sections_title")}</h3>
+        <div class="help-grid">
+          ${d.help_sections.map(s => `
+            <div class="help-card">
+              <div class="icon">${HELP_ICONS[s[0]] || ""}</div>
+              <h4>${escapeHtml(s[1])}</h4>
+              <p>${escapeHtml(s[2])}</p>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:14px;">${t("help_account_title")}</h3>
+        <div class="help-grid">
+          ${d.help_account_items.map(s => `
+            <div class="help-card">
+              <div class="icon">${HELP_ICONS[s[0]] || ""}</div>
+              <h4>${escapeHtml(s[1])}</h4>
+              <p>${escapeHtml(s[2])}</p>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:10px;">${t("help_license_title")}</h3>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0 0 14px;">${escapeHtml(t("help_license_text"))}</p>
+        <a class="btn btn-primary btn-sm" href="settings.html#license">${t("manage_license_btn")}</a>
+      </div>
+
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:8px;">${t("help_faq_title")}</h3>
+        ${d.help_faq.map(f => `
+          <div class="faq-item">
+            <strong>${escapeHtml(f[0])}</strong>
+            <p>${escapeHtml(f[1])}</p>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:8px;">${t("help_more_title")}</h3>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0 0 14px;">${escapeHtml(t("help_more_text"))}</p>
+        <a class="btn btn-sm" href="https://gordasgdc.github.io/gdc-production-manager/" target="_blank" rel="noopener">${t("help_more_link")}</a>
+      </div>
+    `;
+  }
+
+  requireAuth((user) => {
+    renderShell("help.html", user);
+    renderPage(user);
+  });
+</script>
+</body>
+</html>

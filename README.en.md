@@ -40,7 +40,8 @@ On first launch the app opens its interface in a local browser tab (`http://127.
 - **Optional self-hosted sync** — between two installs of the app, no third-party server
 - **Local multi-user**: each account keeps its own data on the same laptop
 - **RO / EN / ES interface**
-- **100% local and free**, open-source (MIT)
+- **100% local**, open-source (MIT) — 7-day free trial, then a lifetime activation (25€, one-time)
+- **Recovery-code password reset**, quick login with Touch ID / Windows Hello, in-app update checker
 
 ## 🛠️ Tech stack
 

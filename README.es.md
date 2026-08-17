@@ -40,7 +40,8 @@ Al iniciar por primera vez, la app abre su interfaz en una pestaña de navegador
 - **Sincronización self-hosted opcional** — entre dos instalaciones de la app, sin servidor de terceros
 - **Multiusuario local**: cada cuenta guarda sus propios datos en el mismo portátil
 - **Interfaz en RO / EN / ES**
-- **100% local y gratis**, de código abierto (MIT)
+- **100% local**, código abierto (MIT) — 7 días de prueba gratuita, luego activación de por vida (25€, pago único)
+- **Recuperación de contraseña con código de rescate**, inicio rápido con Touch ID / Windows Hello, verificación de actualizaciones en la app
 
 ## 🛠️ Stack técnico
 
