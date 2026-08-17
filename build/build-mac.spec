@@ -74,8 +74,8 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "GDC Production Manager",
         "CFBundleDisplayName": "GDC Production Manager",
-        "CFBundleShortVersionString": "1.1.6",  # tine sincronizat manual cu backend/config.py APP_VERSION
-        "CFBundleVersion": "1.1.6",
+        "CFBundleShortVersionString": "1.1.7",  # tine sincronizat manual cu backend/config.py APP_VERSION
+        "CFBundleVersion": "1.1.7",
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "11.0",
         "NSHumanReadableCopyright": "© Cristi Gordas (GDC)",
