@@ -43,11 +43,13 @@ jobs:
             --install-location /Applications \
             GDCProductionManager.pkg
 
-      - name: Bundle .pkg + PDF guides into a single zip
+      - name: Bundle .pkg + PDF guides + uninstaller into a single zip
         run: |
           mkdir -p mac_bundle
           cp GDCProductionManager.pkg mac_bundle/
           cp docs/guides/*.pdf mac_bundle/
+          cp uninstall/uninstall-mac.command mac_bundle/
+          chmod +x mac_bundle/uninstall-mac.command
           cd mac_bundle
           zip -r ../GDCProductionManager-mac.zip .
           cd ..

@@ -31,11 +31,12 @@ jobs:
         run: |
           pyinstaller build/build-windows.spec --noconfirm
 
-      - name: Bundle .exe + PDF guides into a single zip
+      - name: Bundle .exe + PDF guides + uninstaller into a single zip
         run: |
           mkdir dist_release
           copy dist\GDCProductionManager.exe dist_release\
           copy docs\guides\*.pdf dist_release\
+          copy uninstall\uninstall-windows.bat dist_release\
           Compress-Archive -Path "dist_release\*" -DestinationPath "GDCProductionManager-windows.zip"
 
       - name: Upload build artifacts
