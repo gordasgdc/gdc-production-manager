@@ -5,16 +5,30 @@
 set -e
 cd "$(dirname "$0")"
 
-APP_PATH="/Applications/GDCProductionManager.app"
 DATA_DIR="$HOME/Library/Application Support/GDCProductionManager"
+
+# Cale normala + calea gresita in care ajungeau instalarile facute cu
+# pachete .pkg mai vechi (pana la v1.1.5 inclusiv, bug de packaging
+# reparat in v1.1.6) - verificam pe amandoua, ca sa curatam orice a
+# ramas, indiferent cu ce versiune s-a instalat.
+APP_PATHS=(
+    "/Applications/GDCProductionManager.app"
+    "/Applications/Applications/GDCProductionManager.app"
+)
 
 echo "=================================================="
 echo " Dezinstalare GDC Production Manager"
 echo "=================================================="
 echo
 
-if [ ! -d "$APP_PATH" ]; then
-    echo "Nu am gasit $APP_PATH - aplicatia nu pare instalata (sau e in alt loc)."
+FOUND_ANY=0
+for p in "${APP_PATHS[@]}"; do
+    if [ -d "$p" ]; then
+        FOUND_ANY=1
+    fi
+done
+if [ "$FOUND_ANY" -eq 0 ]; then
+    echo "Nu am gasit aplicatia instalata (nici la calea normala, nici la cea veche, gresita)."
 fi
 
 # Opreste aplicatia daca ruleaza, ca sa nu ramana fisiere blocate.
@@ -28,16 +42,18 @@ read -p "Stergi si datele salvate (conturi, proiecte, licenta)? [y/N] " -n 1 -r 
 echo
 echo
 
-if [ -d "$APP_PATH" ]; then
-    echo "Sterg $APP_PATH ..."
-    if rm -rf "$APP_PATH" 2>/dev/null; then
-        echo "  OK."
-    else
-        echo "  Am nevoie de parola de administrator (instalata prin .pkg, detinuta de root):"
-        sudo rm -rf "$APP_PATH"
-        echo "  OK."
+for APP_PATH in "${APP_PATHS[@]}"; do
+    if [ -d "$APP_PATH" ]; then
+        echo "Sterg $APP_PATH ..."
+        if rm -rf "$APP_PATH" 2>/dev/null; then
+            echo "  OK."
+        else
+            echo "  Am nevoie de parola de administrator (instalata prin .pkg, detinuta de root):"
+            sudo rm -rf "$APP_PATH"
+            echo "  OK."
+        fi
     fi
-fi
+done
 
 if [[ "$DELETE_DATA" =~ ^[Yy]$ ]]; then
     if [ -d "$DATA_DIR" ]; then
