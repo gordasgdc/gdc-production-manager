@@ -12,10 +12,12 @@ Nothing is sent anywhere until the person explicitly presses "Push" or
 """
 
 import json
+import ssl
 import urllib.request
 import urllib.error
 from datetime import datetime
 
+import certifi
 from flask import Blueprint, request, jsonify
 
 from models import db, User
@@ -25,6 +27,11 @@ from routes import build_export_dict, apply_import_payload
 sync_bp = Blueprint("sync", __name__)
 
 REQUEST_TIMEOUT_SECONDS = 15
+
+# Vezi nota din update_routes.py: contextul SSL implicit nu gaseste
+# certificatele CA intr-un build PyInstaller - relevant aici doar daca
+# cineva configureaza o tinta de sincronizare pe https://.
+_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 def _user_by_token(token: str):
@@ -78,7 +85,7 @@ def _remote_request(url: str, token: str, method: str = "GET", body: dict = None
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS, context=_SSL_CONTEXT) as resp:
             return True, json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         try:

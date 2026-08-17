@@ -132,6 +132,7 @@ const TRANSLATIONS = {
     error_current_password_wrong: "Parola curentă e greșită.",
     error_webauthn_not_supported: "Acest browser nu suportă Touch ID / Windows Hello.",
     error_webauthn_no_credential: "Nu există Touch ID activat pentru acest utilizator pe acest calculator.",
+    error_check_failed: "Nu am putut verifica actualizările — verifică conexiunea la internet și încearcă din nou.",
     saved: "Salvat.",
     deleted: "Șters.",
 
@@ -491,6 +492,7 @@ const TRANSLATIONS = {
     error_current_password_wrong: "Current password is wrong.",
     error_webauthn_not_supported: "This browser doesn't support Touch ID / Windows Hello.",
     error_webauthn_no_credential: "No Touch ID set up for this user on this computer.",
+    error_check_failed: "Couldn't check for updates — check your internet connection and try again.",
     saved: "Saved.",
     deleted: "Deleted.",
 
@@ -850,6 +852,7 @@ const TRANSLATIONS = {
     error_current_password_wrong: "La contraseña actual es incorrecta.",
     error_webauthn_not_supported: "Este navegador no admite Touch ID / Windows Hello.",
     error_webauthn_no_credential: "No hay Touch ID configurado para este usuario en este ordenador.",
+    error_check_failed: "No se pudieron comprobar las actualizaciones — revisa tu conexión a internet e inténtalo de nuevo.",
     saved: "Guardado.",
     deleted: "Eliminado.",
 
