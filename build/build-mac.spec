@@ -22,6 +22,14 @@ a = Analysis(
     hiddenimports=[
         "flask_sqlalchemy",
         "sqlalchemy.sql.default_comparator",
+        "cryptography",
+        "cryptography.hazmat.primitives.asymmetric.ed25519",
+        "cryptography.hazmat.bindings._rust",
+        "webauthn",
+        "cbor2",
+        "pyasn1",
+        "pyasn1_modules",
+        "OpenSSL",
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -65,8 +73,8 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "GDC Production Manager",
         "CFBundleDisplayName": "GDC Production Manager",
-        "CFBundleShortVersionString": "1.0.0",
-        "CFBundleVersion": "1.0.0",
+        "CFBundleShortVersionString": "1.1.0",  # tine sincronizat manual cu backend/config.py APP_VERSION
+        "CFBundleVersion": "1.1.0",
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "11.0",
         "NSHumanReadableCopyright": "© Cristi Gordas (GDC)",

@@ -47,6 +47,55 @@
       </div>
 
       <div class="card settings-section">
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">GDC Production Manager <span id="settings-app-version" class="row-meta"></span></div>
+            <div id="update-status-line" class="settings-hint"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="check-updates-btn">${t("check_updates_btn")}</button>
+        </div>
+      </div>
+
+      <div class="card settings-section" id="license">
+        <h3>${t("settings_license_section")}</h3>
+        <div id="license-status-line" class="settings-hint" style="margin-bottom:12px;">…</div>
+        <div class="field">
+          <label>${t("machine_id_label")}</label>
+          <div class="code-box">
+            <span class="val" id="settings-machine-id">…</span>
+            <button type="button" class="btn btn-sm" id="settings-copy-machine-id">${t("copy_btn")}</button>
+          </div>
+        </div>
+        <a class="btn btn-whatsapp" id="settings-whatsapp-btn" href="#" target="_blank" rel="noopener" style="margin:6px 0 16px;">${t("whatsapp_btn")}</a>
+        <form id="settings-activate-form">
+          <div class="field">
+            <label>${t("serial_label")}</label>
+            <input type="text" id="settings-serial-input" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+          </div>
+          <button type="submit" class="btn btn-primary">${t("activate_btn")}</button>
+        </form>
+      </div>
+
+      <div class="card settings-section">
+        <h3>${t("settings_security_section")}</h3>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">${t("regenerate_recovery_title")}</div>
+            <div class="settings-hint">${t("regenerate_recovery_sub")}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="regenerate-recovery-btn">${t("regenerate_recovery_btn")}</button>
+        </div>
+        <div id="webauthn-row" class="settings-row" style="display:none;">
+          <div>
+            <div class="settings-label">${t("webauthn_section_title")}</div>
+            <div class="settings-hint">${t("webauthn_section_sub")}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="webauthn-enable-btn">${t("webauthn_enable_btn")}</button>
+        </div>
+        <div id="recovery-modal-settings-root"></div>
+      </div>
+
+      <div class="card settings-section">
         <h3>${t("settings_sync_section")}</h3>
         <p class="settings-hint" style="margin-bottom:16px;">${t("sync_hint")}</p>
         <div class="field">
@@ -75,6 +124,7 @@
 
     updateSyncStatus(user);
     loadTemplates();
+    loadLicenseStatus();
 
     document.getElementById("export-btn").addEventListener("click", exportData);
     document.getElementById("import-input").addEventListener("change", importData);
@@ -82,6 +132,152 @@
     document.getElementById("sync-push-btn").addEventListener("click", () => runSync("push"));
     document.getElementById("sync-pull-btn").addEventListener("click", () => runSync("pull"));
     document.getElementById("new-template-btn").addEventListener("click", () => openTemplateModal(null));
+    document.getElementById("settings-copy-machine-id").addEventListener("click", () => {
+      navigator.clipboard.writeText(LAST_LICENSE_STATUS.machine_id).then(() => showToast(t("copied_toast")));
+    });
+    document.getElementById("settings-activate-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await API.post("/api/license/activate", { serial: document.getElementById("settings-serial-input").value.trim() });
+        showToast(t("saved"));
+        loadLicenseStatus();
+      } catch (err) {
+        showToast(errorMessage(err), "error");
+      }
+    });
+    document.getElementById("regenerate-recovery-btn").addEventListener("click", openRegenerateRecoveryModal);
+    document.getElementById("check-updates-btn").onclick = checkForUpdates;
+    loadAppVersion();
+    setupWebauthnSection(user);
+  }
+
+  async function setupWebauthnSection(user) {
+    if (!webauthnSupported()) return;
+    const row = document.getElementById("webauthn-row");
+    row.style.display = "flex";
+    const btn = document.getElementById("webauthn-enable-btn");
+    try {
+      const cred = await API.get(`/api/auth/webauthn/has-credential?username=${encodeURIComponent(user.username)}`);
+      if (cred.has_credential) {
+        btn.textContent = t("webauthn_enabled_status");
+        btn.disabled = true;
+        return;
+      }
+    } catch (e) {}
+    btn.addEventListener("click", async () => {
+      try {
+        await webauthnRegister();
+        showToast(t("saved"));
+        btn.textContent = t("webauthn_enabled_status");
+        btn.disabled = true;
+      } catch (err) {
+        showToast(errorMessage(err), "error");
+      }
+    });
+  }
+
+  async function loadAppVersion() {
+    try {
+      const v = await API.get("/api/version");
+      document.getElementById("settings-app-version").textContent = "v" + v.version;
+    } catch (e) {}
+  }
+
+  async function checkForUpdates() {
+    const line = document.getElementById("update-status-line");
+    const btn = document.getElementById("check-updates-btn");
+    line.textContent = t("update_checking");
+    btn.disabled = true;
+    try {
+      const result = await API.get("/api/update/check");
+      if (result.update_available) {
+        const platform = navigator.platform.toLowerCase().includes("mac") ? "mac" : "windows";
+        const url = result.download_url[platform] || result.download_url.mac;
+        line.innerHTML = `${tf("update_available", { version: result.latest_version })}${result.changes ? " — " + escapeHtml(result.changes) : ""}`;
+        btn.textContent = t("update_download_btn");
+        btn.onclick = () => window.open(url, "_blank");
+      } else {
+        line.textContent = t("update_none");
+        btn.textContent = t("check_updates_btn");
+        btn.onclick = checkForUpdates;
+      }
+    } catch (e) {
+      line.textContent = errorMessage(e);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function openRegenerateRecoveryModal() {
+    document.getElementById("recovery-modal-settings-root").innerHTML = `
+      <div class="recovery-modal-backdrop" id="regen-modal-backdrop">
+        <div class="recovery-modal">
+          <h2>${t("regenerate_recovery_title")}</h2>
+          <p>${t("regenerate_recovery_sub")}</p>
+          <form id="regen-recovery-form">
+            <div class="field">
+              <label>${t("current_password_label")}</label>
+              <input type="password" id="regen-current-password" autocomplete="current-password" required>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="button" class="btn" id="regen-cancel-btn" style="flex:1;">${t("cancel")}</button>
+              <button type="submit" class="btn btn-primary" style="flex:1;">${t("regenerate_recovery_btn")}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    const close = () => { document.getElementById("recovery-modal-settings-root").innerHTML = ""; };
+    document.getElementById("regen-cancel-btn").addEventListener("click", close);
+    document.getElementById("regen-recovery-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const result = await API.post("/api/auth/regenerate-recovery-code", {
+          current_password: document.getElementById("regen-current-password").value,
+        });
+        close();
+        showRecoveryModal(result.recovery_code);
+      } catch (err) {
+        showToast(errorMessage(err), "error");
+      }
+    });
+  }
+
+  function showRecoveryModal(code) {
+    document.getElementById("recovery-modal-settings-root").innerHTML = `
+      <div class="recovery-modal-backdrop">
+        <div class="recovery-modal">
+          <h2>${t("recovery_modal_title")}</h2>
+          <p>${t("recovery_modal_text")}</p>
+          <div class="code-box" style="margin-bottom:18px;"><span class="val">${code}</span></div>
+          <button class="btn btn-primary btn-block" id="regen-modal-confirm-btn">${t("recovery_modal_confirm")}</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("regen-modal-confirm-btn").addEventListener("click", () => {
+      document.getElementById("recovery-modal-settings-root").innerHTML = "";
+    });
+  }
+
+  let LAST_LICENSE_STATUS = null;
+
+  async function loadLicenseStatus() {
+    try {
+      LAST_LICENSE_STATUS = await API.get("/api/license/status");
+      document.getElementById("settings-machine-id").textContent = LAST_LICENSE_STATUS.machine_id;
+      const msg = encodeURIComponent(
+        `Salut! Vreau să activez GDC Production Manager (25€ lifetime). ID calculator: ${LAST_LICENSE_STATUS.machine_id}`
+      );
+      document.getElementById("settings-whatsapp-btn").href = `https://wa.me/34643109970?text=${msg}`;
+      const line = document.getElementById("license-status-line");
+      if (LAST_LICENSE_STATUS.licensed) {
+        line.textContent = t("license_status_licensed");
+      } else if (LAST_LICENSE_STATUS.trial_days_remaining > 0) {
+        line.textContent = tf("license_status_trial", { days: LAST_LICENSE_STATUS.trial_days_remaining });
+      } else {
+        line.textContent = t("license_status_expired");
+      }
+    } catch (e) {}
   }
 
   let ALL_TEMPLATES = [];
