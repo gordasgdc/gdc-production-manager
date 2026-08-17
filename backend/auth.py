@@ -6,6 +6,8 @@ one person share one installed copy while keeping their data separate.
 Nothing here is transmitted over a network.
 """
 
+import base64
+import secrets
 from functools import wraps
 from flask import Blueprint, request, jsonify, session
 
@@ -13,6 +15,15 @@ from models import db, User
 from seed import seed_default_checklist_templates
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _generate_recovery_code() -> str:
+    """Cod de recuperare lizibil, gen 'XXXX-XXXX-XXXX-XXXX' (Base32,
+    80 biti de entropie) - acelasi stil vizual ca un cod serial de
+    licenta, ca sa fie familiar userilor GDC."""
+    raw = secrets.token_bytes(10)
+    b32 = base64.b32encode(raw).decode("ascii").rstrip("=")
+    return "-".join(b32[i:i + 4] for i in range(0, len(b32), 4))
 
 
 def login_required(view_func):
@@ -62,13 +73,59 @@ def register():
 
     user = User(username=username, display_name=display_name, language=language)
     user.set_password(password)
+    recovery_code = _generate_recovery_code()
+    user.set_recovery_code(recovery_code)
     db.session.add(user)
     db.session.commit()
 
     seed_default_checklist_templates(user)
 
     session["user_id"] = user.id
-    return jsonify({"user": user.to_dict()}), 201
+    # recovery_code apare AICI o singura data - nu e stocat in clar
+    # nicaieri, doar hash-ul lui in DB. Daca se pierde, singura cale e
+    # /api/auth/regenerate-recovery-code (cere parola curenta).
+    return jsonify({"user": user.to_dict(), "recovery_code": recovery_code}), 201
+
+
+@auth_bp.route("/api/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    recovery_code = (data.get("recovery_code") or "").strip()
+    new_password = data.get("new_password") or ""
+
+    if len(new_password) < 6:
+        return jsonify({"error": "password_too_short"}), 400
+
+    user = User.query.filter_by(username=username).first()
+    # Nu dezvaluim daca username-ul exista sau nu - acelasi mesaj de
+    # eroare pentru "user inexistent" si "cod gresit".
+    if not user or not user.check_recovery_code(recovery_code):
+        return jsonify({"error": "invalid_recovery_code"}), 401
+
+    user.set_password(new_password)
+    new_recovery_code = _generate_recovery_code()
+    user.set_recovery_code(new_recovery_code)
+    db.session.commit()
+
+    return jsonify({"ok": True, "recovery_code": new_recovery_code})
+
+
+@auth_bp.route("/api/auth/regenerate-recovery-code", methods=["POST"])
+@login_required
+def regenerate_recovery_code():
+    data = request.get_json(silent=True) or {}
+    current_password = data.get("current_password") or ""
+
+    user = current_user()
+    if not user.check_password(current_password):
+        return jsonify({"error": "current_password_wrong"}), 401
+
+    new_recovery_code = _generate_recovery_code()
+    user.set_recovery_code(new_recovery_code)
+    db.session.commit()
+
+    return jsonify({"recovery_code": new_recovery_code})
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])

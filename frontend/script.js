@@ -26,6 +26,10 @@ const API = {
       data = null;
     }
     if (!res.ok) {
+      if (res.status === 403 && data && data.error === "trial_expired" && !location.pathname.endsWith("/activate.html")) {
+        window.location.href = "activate.html";
+        return new Promise(() => {}); // navigare in curs — nu mai continua fluxul curent
+      }
       const err = new Error((data && data.error) || "request_failed");
       err.status = res.status;
       err.payload = data;
@@ -38,6 +42,71 @@ const API = {
   put(url, body) { return this._call("PUT", url, body); },
   del(url) { return this._call("DELETE", url); },
 };
+
+// --- WebAuthn (Touch ID / Windows Hello) helpers -----------------------
+// Codeaza/decodeaza intre ArrayBuffer (ce foloseste navigator.credentials)
+// si base64url (ce trimite/primeste backend-ul in JSON), exact schema
+// pe care py_webauthn o asteapta: id/rawId/response.* ca stringuri base64url.
+
+function bufToBase64url(buf) {
+  const bytes = new Uint8Array(buf);
+  let str = "";
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function base64urlToBuf(str) {
+  const b64 = str.replace(/-/g, "+").replace(/_/g, "/").padEnd(str.length + (4 - str.length % 4) % 4, "=");
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function webauthnSupported() {
+  return !!(window.PublicKeyCredential && navigator.credentials);
+}
+
+async function webauthnRegister() {
+  const options = await API.get("/api/auth/webauthn/register-options");
+  options.challenge = base64urlToBuf(options.challenge);
+  options.user.id = base64urlToBuf(options.user.id);
+  if (options.excludeCredentials) {
+    options.excludeCredentials = options.excludeCredentials.map(c => ({ ...c, id: base64urlToBuf(c.id) }));
+  }
+  const credential = await navigator.credentials.create({ publicKey: options });
+  const payload = {
+    id: credential.id,
+    rawId: bufToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: bufToBase64url(credential.response.clientDataJSON),
+      attestationObject: bufToBase64url(credential.response.attestationObject),
+    },
+  };
+  await API.post("/api/auth/webauthn/register", payload);
+}
+
+async function webauthnLogin(username) {
+  const options = await API.post("/api/auth/webauthn/login-options", { username });
+  options.challenge = base64urlToBuf(options.challenge);
+  if (options.allowCredentials) {
+    options.allowCredentials = options.allowCredentials.map(c => ({ ...c, id: base64urlToBuf(c.id) }));
+  }
+  const credential = await navigator.credentials.get({ publicKey: options });
+  const payload = {
+    id: credential.id,
+    rawId: bufToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: bufToBase64url(credential.response.clientDataJSON),
+      authenticatorData: bufToBase64url(credential.response.authenticatorData),
+      signature: bufToBase64url(credential.response.signature),
+      userHandle: credential.response.userHandle ? bufToBase64url(credential.response.userHandle) : null,
+    },
+  };
+  return API.post("/api/auth/webauthn/login", payload);
+}
 
 function showToast(message, type = "success") {
   const el = document.createElement("div");
@@ -238,6 +307,7 @@ function renderShell(activeHref, user) {
       </div>
       <nav>${nav}</nav>
       <div class="sidebar-footer">
+        <div id="license-badge-slot"></div>
         <button class="theme-toggle" id="theme-toggle-btn">
           <span id="theme-toggle-label">${CURRENT_THEME === "light" ? t("theme_light") : t("theme_dark")}</span>
           <span>${CURRENT_THEME === "light" ? "☀️" : "🌙"}</span>
@@ -283,6 +353,22 @@ function renderShell(activeHref, user) {
   });
 
   initNotificationPolling();
+  renderLicenseBadge();
+}
+
+async function renderLicenseBadge() {
+  const slot = document.getElementById("license-badge-slot");
+  if (!slot) return;
+  try {
+    const status = await API.get("/api/license/status");
+    if (status.licensed) return; // licentiat pe viata - nu mai aratam nimic
+    const warn = status.trial_days_remaining <= 2;
+    slot.innerHTML = `
+      <a href="settings.html#license" class="license-badge ${warn ? "warn" : ""}" style="text-decoration:none; margin-bottom:10px; justify-content:center;">
+        ⏰ ${tf("license_status_trial", { days: status.trial_days_remaining })}
+      </a>
+    `;
+  } catch (e) {}
 }
 
 // Ensures the user is authenticated, then calls onReady(user).

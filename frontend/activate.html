@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager — Activare</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-screen">
+  <div class="auth-card" style="max-width:440px;">
+    <div class="auth-brand">
+      <div class="clapper">🎬</div>
+      <h1 data-t="activate_title">Activare</h1>
+      <p id="activate-sub" data-t="activate_trial_sub"></p>
+    </div>
+
+    <div id="activate-error" class="auth-error" style="display:none;"></div>
+
+    <div class="field">
+      <label data-t="machine_id_label">ID-ul acestui calculator</label>
+      <div class="code-box">
+        <span class="val" id="machine-id-val">…</span>
+        <button type="button" class="btn btn-sm" id="copy-machine-id" data-t="copy_btn">Copiază</button>
+      </div>
+      <div class="field-hint" data-t="machine_id_hint"></div>
+    </div>
+
+    <a class="btn btn-whatsapp btn-block" id="whatsapp-btn" href="#" target="_blank" rel="noopener" style="margin:14px 0;">
+      <span data-t="whatsapp_btn">💬 Cumpără pe WhatsApp — 25€ lifetime</span>
+    </a>
+
+    <form id="activate-form">
+      <div class="field">
+        <label data-t="serial_label">Cod serial</label>
+        <input type="text" id="serial-input" autocomplete="off" spellcheck="false" required
+               placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" data-t="activate_btn">Activează</button>
+    </form>
+  </div>
+</div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  let licenseStatus = null;
+
+  function renderStatus() {
+    const sub = document.getElementById("activate-sub");
+    if (!licenseStatus) return;
+    if (licenseStatus.licensed) {
+      sub.textContent = t("activate_licensed_sub");
+    } else if (licenseStatus.trial_days_remaining > 0) {
+      sub.textContent = tf("activate_trial_sub_days", { days: licenseStatus.trial_days_remaining });
+    } else {
+      sub.textContent = t("activate_expired_sub");
+    }
+    document.getElementById("machine-id-val").textContent = licenseStatus.machine_id;
+
+    const msg = encodeURIComponent(
+      `Salut! Vreau să activez GDC Production Manager (25€ lifetime). ID calculator: ${licenseStatus.machine_id}`
+    );
+    document.getElementById("whatsapp-btn").href = `https://wa.me/34643109970?text=${msg}`;
+  }
+
+  function showActivateError(msg) {
+    const el = document.getElementById("activate-error");
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+
+  document.getElementById("copy-machine-id").addEventListener("click", () => {
+    navigator.clipboard.writeText(licenseStatus.machine_id).then(() => {
+      showToast(t("copied_toast"));
+    });
+  });
+
+  document.getElementById("activate-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      licenseStatus = await API.post("/api/license/activate", {
+        serial: document.getElementById("serial-input").value.trim(),
+      });
+      window.location.href = "login.html";
+    } catch (err) {
+      showActivateError(errorMessage(err));
+    }
+  });
+
+  (async function init() {
+    applyStaticTranslations();
+    try {
+      licenseStatus = await API.get("/api/license/status");
+      if (licenseStatus.unlocked) {
+        window.location.href = "login.html";
+        return;
+      }
+      renderStatus();
+    } catch (e) {
+      showActivateError(t("error_generic"));
+    }
+  })();
+</script>
+</body>
+</html>

@@ -51,6 +51,10 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    # Cod de recuperare afisat o SINGURA DATA la inregistrare (si rotit la
+    # fiecare reset reusit) - singura cale de a recupera accesul daca
+    # userul uita parola, fiindca aplicatia e 100% offline, fara email.
+    recovery_code_hash = db.Column(db.String(255), nullable=True)
     display_name = db.Column(db.String(120), nullable=True)
     language = db.Column(db.String(5), nullable=False, default="ro")
     theme = db.Column(db.String(10), nullable=False, default="dark")
@@ -92,6 +96,14 @@ class User(db.Model):
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
+    def set_recovery_code(self, code: str) -> None:
+        self.recovery_code_hash = generate_password_hash(code)
+
+    def check_recovery_code(self, code: str) -> bool:
+        if not self.recovery_code_hash:
+            return False
+        return check_password_hash(self.recovery_code_hash, code)
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -104,6 +116,23 @@ class User(db.Model):
             "sync_configured": bool(self.sync_remote_url and self.sync_token),
             "last_synced_at": self.last_synced_at.isoformat() if self.last_synced_at else None,
         }
+
+
+class WebAuthnCredential(db.Model):
+    """O credentiala Touch ID / Windows Hello inregistrata pentru un cont,
+    pe un calculator anume - autentificare rapida, fara sa mai tastezi
+    parola. Parola ramane mereu functionala ca fallback."""
+    __tablename__ = "webauthn_credentials"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    credential_id = db.Column(db.String(400), unique=True, nullable=False)
+    public_key = db.Column(db.Text, nullable=False)
+    sign_count = db.Column(db.Integer, nullable=False, default=0)
+    label = db.Column(db.String(120), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref=db.backref("webauthn_credentials", lazy=True, cascade="all, delete-orphan"))
 
 
 class Client(db.Model):

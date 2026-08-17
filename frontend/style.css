@@ -473,6 +473,41 @@ button, input, select, textarea{ font-family: var(--font-body); }
   margin-bottom: 14px;
 }
 
+/* ---------------------------------------------------------- licenta - */
+
+.license-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  background: var(--bg-elevated); border:1px solid var(--border);
+  border-radius: 100px; padding: 5px 12px; font-size: 12px; color: var(--text-muted);
+}
+.license-badge.warn{ border-color: var(--amber); color: var(--amber); }
+
+.code-box{
+  display:flex; align-items:center; gap:8px;
+  background: var(--bg-elevated); border:1px solid var(--border-soft);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.5px;
+  word-break: break-all;
+}
+.code-box .val{ flex:1; user-select: all; }
+
+.btn-whatsapp{
+  background: #25D366; border-color:#25D366; color:#06210F;
+}
+.btn-whatsapp:hover{ background:#2fe377; border-color:#2fe377; }
+
+.recovery-modal-backdrop{
+  position: fixed; inset:0; background: rgba(0,0,0,0.6);
+  display:flex; align-items:center; justify-content:center; z-index: 1000;
+}
+.recovery-modal{
+  background: var(--panel); border:1px solid var(--border-soft);
+  border-radius: var(--radius-lg); padding: 28px; max-width: 420px; width:90%;
+  box-shadow: var(--shadow);
+}
+.recovery-modal h2{ font-size:16px; margin: 0 0 8px; }
+.recovery-modal p{ font-size:13px; color: var(--text-muted); margin: 0 0 16px; }
+
 /* ------------------------------------------------------ pipeline mini - */
 
 .mini-pipeline{ display:flex; gap:3px; }

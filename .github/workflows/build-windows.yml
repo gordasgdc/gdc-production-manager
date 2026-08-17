@@ -31,18 +31,25 @@ jobs:
         run: |
           pyinstaller build/build-windows.spec --noconfirm
 
+      - name: Bundle .exe + PDF guides into a single zip
+        run: |
+          mkdir dist_release
+          copy dist\GDCProductionManager.exe dist_release\
+          copy docs\guides\*.pdf dist_release\
+          Compress-Archive -Path "dist_release\*" -DestinationPath "GDCProductionManager-windows.zip"
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: GDCProductionManager-Windows
-          path: dist/GDCProductionManager.exe
+          path: GDCProductionManager-windows.zip
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/GDCProductionManager.exe
+            GDCProductionManager-windows.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

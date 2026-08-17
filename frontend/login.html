@@ -54,6 +54,28 @@
       <button type="submit" class="btn btn-primary btn-block" data-t="register_btn">Creează cont</button>
     </form>
 
+    <form id="forgot-form" style="display:none;">
+      <div class="field">
+        <label data-t="username">Utilizator</label>
+        <input type="text" id="forgot-username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label data-t="recovery_code_label">Cod de recuperare</label>
+        <input type="text" id="forgot-recovery-code" autocomplete="off" spellcheck="false" required placeholder="XXXX-XXXX-XXXX-XXXX">
+      </div>
+      <div class="field">
+        <label data-t="new_password_label">Parolă nouă</label>
+        <input type="password" id="forgot-new-password" autocomplete="new-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" data-t="reset_password_btn">Resetează parola</button>
+      <button type="button" class="btn btn-ghost btn-block" id="forgot-back-btn" style="margin-top:8px;" data-t="back_to_login">Înapoi la autentificare</button>
+    </form>
+
+    <div id="login-extra-links" style="text-align:center; margin-top:14px;">
+      <button type="button" id="webauthn-login-btn" class="btn btn-block" style="display:none; margin-bottom:8px;" data-t="webauthn_login_btn"></button>
+      <a href="#" id="forgot-link" style="font-size:12.5px; color:var(--text-muted); text-decoration:none;" data-t="forgot_password_link">Ai uitat parola?</a>
+    </div>
+
     <div class="lang-switch" style="margin-top:20px;">
       <button class="lang-btn" data-lang="ro">RO</button>
       <button class="lang-btn" data-lang="en">EN</button>
@@ -61,6 +83,8 @@
     </div>
   </div>
 </div>
+
+<div id="recovery-modal-root"></div>
 
 <script src="translations.js"></script>
 <script src="script.js"></script>
@@ -84,6 +108,8 @@
       const isLogin = tab.dataset.tab === "login";
       document.getElementById("login-form").style.display = isLogin ? "block" : "none";
       document.getElementById("register-form").style.display = isLogin ? "none" : "block";
+      document.getElementById("forgot-form").style.display = "none";
+      document.getElementById("login-extra-links").style.display = "block";
       document.getElementById("auth-error").style.display = "none";
     });
   });
@@ -94,13 +120,31 @@
     el.style.display = "block";
   }
 
+  function showRecoveryCodeModal(code, onClose) {
+    document.getElementById("recovery-modal-root").innerHTML = `
+      <div class="recovery-modal-backdrop">
+        <div class="recovery-modal">
+          <h2>${t("recovery_modal_title")}</h2>
+          <p>${t("recovery_modal_text")}</p>
+          <div class="code-box" style="margin-bottom:18px;">
+            <span class="val">${code}</span>
+          </div>
+          <button class="btn btn-primary btn-block" id="recovery-modal-confirm-btn">${t("recovery_modal_confirm")}</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("recovery-modal-confirm-btn").addEventListener("click", () => {
+      document.getElementById("recovery-modal-root").innerHTML = "";
+      if (onClose) onClose();
+    });
+  }
+
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const username = document.getElementById("login-username").value.trim();
     try {
-      await API.post("/api/auth/login", {
-        username: document.getElementById("login-username").value.trim(),
-        password: document.getElementById("login-password").value,
-      });
+      await API.post("/api/auth/login", { username, password: document.getElementById("login-password").value });
+      localStorage.setItem("gdc_last_username", username);
       window.location.href = "index.html";
     } catch (err) {
       showAuthError(errorMessage(err));
@@ -110,12 +154,57 @@
   document.getElementById("register-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
-      await API.post("/api/auth/register", {
+      const result = await API.post("/api/auth/register", {
         display_name: document.getElementById("register-display-name").value.trim(),
         username: document.getElementById("register-username").value.trim(),
         password: document.getElementById("register-password").value,
         language: CURRENT_LANG,
       });
+      localStorage.setItem("gdc_last_username", result.user.username);
+      showRecoveryCodeModal(result.recovery_code, () => { window.location.href = "index.html"; });
+    } catch (err) {
+      showAuthError(errorMessage(err));
+    }
+  });
+
+  document.getElementById("forgot-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById("login-form").style.display = "none";
+    document.getElementById("register-form").style.display = "none";
+    document.getElementById("forgot-form").style.display = "block";
+    document.getElementById("login-extra-links").style.display = "none";
+    document.getElementById("auth-error").style.display = "none";
+    document.querySelectorAll(".auth-tab").forEach(t2 => t2.classList.remove("active"));
+    const lastUsername = localStorage.getItem("gdc_last_username");
+    if (lastUsername) document.getElementById("forgot-username").value = lastUsername;
+  });
+
+  document.getElementById("forgot-back-btn").addEventListener("click", () => {
+    document.querySelector('.auth-tab[data-tab="login"]').click();
+  });
+
+  document.getElementById("forgot-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      const result = await API.post("/api/auth/forgot-password", {
+        username: document.getElementById("forgot-username").value.trim(),
+        recovery_code: document.getElementById("forgot-recovery-code").value.trim(),
+        new_password: document.getElementById("forgot-new-password").value,
+      });
+      showRecoveryCodeModal(result.recovery_code, () => {
+        document.querySelector('.auth-tab[data-tab="login"]').click();
+        showToast(t("saved"));
+      });
+    } catch (err) {
+      showAuthError(errorMessage(err));
+    }
+  });
+
+  document.getElementById("webauthn-login-btn").addEventListener("click", async () => {
+    const username = localStorage.getItem("gdc_last_username");
+    if (!username) return;
+    try {
+      await webauthnLogin(username);
       window.location.href = "index.html";
     } catch (err) {
       showAuthError(errorMessage(err));
@@ -125,6 +214,8 @@
   (async function init() {
     applyStaticTranslations();
     refreshLangButtons();
+    const lastUsername = localStorage.getItem("gdc_last_username");
+    if (lastUsername) document.getElementById("login-username").value = lastUsername;
     try {
       const status = await API.get("/api/auth/status");
       if (status.authenticated) {
@@ -139,6 +230,12 @@
         document.querySelector('.auth-tab[data-tab="register"]').click();
       }
     } catch (e) {}
+    if (lastUsername && webauthnSupported()) {
+      try {
+        const cred = await API.get(`/api/auth/webauthn/has-credential?username=${encodeURIComponent(lastUsername)}`);
+        if (cred.has_credential) document.getElementById("webauthn-login-btn").style.display = "block";
+      } catch (e) {}
+    }
   })();
 </script>
 </body>
