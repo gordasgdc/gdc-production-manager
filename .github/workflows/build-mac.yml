@@ -40,7 +40,7 @@ jobs:
             --root pkg_root \
             --identifier com.gordasgdc.productionmanager \
             --version "${VERSION:-1.0.0}" \
-            --install-location /Applications \
+            --install-location / \
             GDCProductionManager.pkg
 
       - name: Bundle .pkg + PDF guides + uninstaller into a single zip

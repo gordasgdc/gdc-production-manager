@@ -1,7 +1,7 @@
 {
-  "version": "1.1.5",
+  "version": "1.1.6",
   "release_date": "2026-08-17",
-  "changes": "Explicatie completa pentru checklist-uri si sabloane (in Ajutor si in ghidul PDF) - ce sunt, cele 4 sabloane incluse, cum se aplica pe un proiect.",
+  "changes": "Repara .pkg-ul Mac: se instala gresit in /Applications/Applications/ in loc de /Applications/ (bug in pkgbuild --install-location, prezent de la v1.1.0).",
   "download_url": {
     "mac": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-mac.zip",
     "windows": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-windows.zip"
