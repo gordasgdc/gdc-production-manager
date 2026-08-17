@@ -1,9 +1,9 @@
 {
-  "version": "1.1.1",
+  "version": "1.1.2",
   "release_date": "2026-08-17",
-  "changes": "Pagina noua de Ajutor in aplicatie, cu tot ce poate face GDC Production Manager (functionalitati, cont si securitate, licenta, intrebari frecvente).",
+  "changes": "Arhiva Mac include acum si ghidurile PDF (ca la Windows) - un singur .zip de descarcat, in loc de fisiere separate.",
   "download_url": {
-    "mac": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager.pkg",
+    "mac": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-mac.zip",
     "windows": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-windows.zip"
   },
   "mandatory": false,

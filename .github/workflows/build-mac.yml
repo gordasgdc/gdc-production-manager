@@ -31,12 +31,6 @@ jobs:
         run: |
           pyinstaller build/build-mac.spec --noconfirm
 
-      - name: Zip the .app for distribution
-        run: |
-          cd dist
-          ditto -c -k --sequesterRsrc --keepParent GDCProductionManager.app GDCProductionManager-mac.zip
-          cd ..
-
       - name: Create .pkg installer
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -49,22 +43,27 @@ jobs:
             --install-location /Applications \
             GDCProductionManager.pkg
 
+      - name: Bundle .pkg + PDF guides into a single zip
+        run: |
+          mkdir -p mac_bundle
+          cp GDCProductionManager.pkg mac_bundle/
+          cp docs/guides/*.pdf mac_bundle/
+          cd mac_bundle
+          zip -r ../GDCProductionManager-mac.zip .
+          cd ..
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: GDCProductionManager-Mac
-          path: |
-            dist/GDCProductionManager-mac.zip
-            GDCProductionManager.pkg
+          path: GDCProductionManager-mac.zip
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/GDCProductionManager-mac.zip
-            GDCProductionManager.pkg
-            docs/guides/*.pdf
+            GDCProductionManager-mac.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
