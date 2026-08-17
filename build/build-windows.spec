@@ -28,6 +28,7 @@ a = Analysis(
         "pyasn1",
         "pyasn1_modules",
         "OpenSSL",
+        "certifi",
     ],
     hookspath=[],
     runtime_hooks=[],
