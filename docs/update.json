@@ -1,7 +1,7 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "release_date": "2026-08-17",
-  "changes": "Trial de 7 zile + licență lifetime (25€), recuperare parolă cu cod de rezervă, verificare actualizări din aplicație, autocomplete username și logare rapidă cu Touch ID / Windows Hello.",
+  "changes": "Pagina noua de Ajutor in aplicatie, cu tot ce poate face GDC Production Manager (functionalitati, cont si securitate, licenta, intrebari frecvente).",
   "download_url": {
     "mac": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager.pkg",
     "windows": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-windows.zip"
