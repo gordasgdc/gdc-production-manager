@@ -13,8 +13,10 @@ The latest version is available in [Releases](https://github.com/gordasgdc/gdc-p
 
 | Platform | File | Install |
 |---|---|---|
-| **Mac** | `GDCProductionManager.pkg` | double-click → follow the installer |
-| **Windows** | `GDCProductionManager.exe` | double-click to run |
+| **Mac** | `GDCProductionManager-mac.zip` | unzip, then double-click the `.pkg` → follow the installer |
+| **Windows** | `GDCProductionManager-windows.zip` | unzip, then double-click the `.exe` |
+
+Each archive also includes the PDF guide (RO/EN/ES).
 
 On first launch the app opens its interface in a local browser tab (`http://127.0.0.1:xxxx`) — nothing ever leaves your machine.
 

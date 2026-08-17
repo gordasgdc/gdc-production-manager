@@ -13,8 +13,10 @@ Ultima versiune e disponibilă în [Releases](https://github.com/gordasgdc/gdc-p
 
 | Platformă | Fișier | Instalare |
 |---|---|---|
-| **Mac** | `GDCProductionManager.pkg` | dublu-click → urmează instalatorul |
-| **Windows** | `GDCProductionManager.exe` | dublu-click pentru a rula |
+| **Mac** | `GDCProductionManager-mac.zip` | dezarhivează, apoi dublu-click pe `.pkg` → urmează instalatorul |
+| **Windows** | `GDCProductionManager-windows.zip` | dezarhivează, apoi dublu-click pe `.exe` |
+
+Fiecare arhivă include și ghidul PDF (RO/EN/ES).
 
 La prima pornire, aplicația deschide automat interfața într-un tab de browser local (`http://127.0.0.1:xxxx`) — nimic nu pleacă pe internet.
 
