@@ -16,7 +16,9 @@ La última versión está disponible en [Releases](https://github.com/gordasgdc/
 | **Mac** | `GDCProductionManager-mac.zip` | descomprime, luego doble clic en el `.pkg` → sigue el instalador |
 | **Windows** | `GDCProductionManager-windows.zip` | descomprime, luego doble clic en el `.exe` |
 
-Cada archivo incluye también la guía en PDF (RO/EN/ES).
+Cada archivo incluye también la guía en PDF (RO/EN/ES) y un script de
+desinstalación (`uninstall-mac.command` / `uninstall-windows.bat`) — útil si
+quieres eliminarla por completo o reinstalarla desde cero.
 
 Al iniciar por primera vez, la app abre su interfaz en una pestaña de navegador local (`http://127.0.0.1:xxxx`) — nada sale de tu equipo.
 
