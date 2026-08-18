@@ -11,9 +11,9 @@ from werkzeug.utils import secure_filename
 
 from models import (
     db, Client, Company, Project, WorkflowTemplate, Attachment, Course, DigitalProduct,
-    ChecklistTemplate, Checklist, Reminder,
+    ChecklistTemplate, Checklist, Reminder, Equipment, EquipmentCheckout,
     PROJECT_STATUSES, PROJECT_TYPES, PAYMENT_STATUSES, COURSE_STATUSES, PRODUCT_TYPES,
-    CURRENCIES, CHECKLIST_TYPES, REMINDER_TYPES,
+    CURRENCIES, CHECKLIST_TYPES, REMINDER_TYPES, EQUIPMENT_STATUSES,
 )
 from auth import login_required, current_user
 from config import ATTACHMENTS_DIR
@@ -45,6 +45,7 @@ def meta():
             "currencies": CURRENCIES,
             "checklist_types": CHECKLIST_TYPES,
             "reminder_types": REMINDER_TYPES,
+            "equipment_statuses": EQUIPMENT_STATUSES,
         }
     )
 
@@ -452,6 +453,197 @@ def delete_project(project_id):
     if not project:
         return jsonify({"error": "not_found"}), 404
     db.session.delete(project)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ------------------------------------------------------------ equipment ----
+
+@api_bp.route("/api/equipment", methods=["GET"])
+@login_required
+def list_equipment():
+    user = current_user()
+    q = (request.args.get("q") or "").strip().lower()
+    status = request.args.get("status")
+    items = Equipment.query.filter_by(user_id=user.id).order_by(Equipment.name.asc()).all()
+    if status:
+        items = [e for e in items if e.status == status]
+    if q:
+        items = [e for e in items if q in (e.name or "").lower() or q in (e.serial_number or "").lower()]
+    return jsonify([e.to_dict() for e in items])
+
+
+@api_bp.route("/api/equipment", methods=["POST"])
+@login_required
+def create_equipment():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name_required"}), 400
+
+    item = Equipment(
+        user_id=user.id,
+        name=name,
+        category=data.get("category"),
+        serial_number=data.get("serial_number"),
+        status=data.get("status") or "available",
+        notes=data.get("notes"),
+    )
+    db.session.add(item)
+    db.session.commit()
+    return jsonify(item.to_dict()), 201
+
+
+@api_bp.route("/api/equipment/<int:equipment_id>", methods=["PUT"])
+@login_required
+def update_equipment(equipment_id):
+    user = current_user()
+    item = Equipment.query.filter_by(id=equipment_id, user_id=user.id).first()
+    if not item:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    for field in ("name", "category", "serial_number", "status", "notes"):
+        if field in data:
+            setattr(item, field, data[field])
+    db.session.commit()
+    return jsonify(item.to_dict())
+
+
+@api_bp.route("/api/equipment/<int:equipment_id>", methods=["DELETE"])
+@login_required
+def delete_equipment(equipment_id):
+    user = current_user()
+    item = Equipment.query.filter_by(id=equipment_id, user_id=user.id).first()
+    if not item:
+        return jsonify({"error": "not_found"}), 404
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# --------------------------------------------------- equipment checkouts ---
+
+@api_bp.route("/api/checkouts", methods=["GET"])
+@login_required
+def list_checkouts():
+    """?active=1 filters to sheets not yet fully returned - the "what's
+    still out there" view."""
+    user = current_user()
+    checkouts = EquipmentCheckout.query.filter_by(user_id=user.id).order_by(EquipmentCheckout.checked_out_at.desc()).all()
+    if request.args.get("active") == "1":
+        checkouts = [c for c in checkouts if c.returned_at is None]
+    return jsonify([c.to_dict() for c in checkouts])
+
+
+@api_bp.route("/api/checkouts/<int:checkout_id>", methods=["GET"])
+@login_required
+def get_checkout(checkout_id):
+    user = current_user()
+    checkout = EquipmentCheckout.query.filter_by(id=checkout_id, user_id=user.id).first()
+    if not checkout:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(checkout.to_dict())
+
+
+@api_bp.route("/api/equipment/checkout", methods=["POST"])
+@login_required
+def create_checkout():
+    """Hands a batch of equipment out - marks every item `checked_out`
+    and creates one sheet covering all of them, optionally tied to a
+    project."""
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    equipment_ids = data.get("equipment_ids") or []
+    if not equipment_ids:
+        return jsonify({"error": "equipment_ids_required"}), 400
+
+    items = Equipment.query.filter(Equipment.id.in_(equipment_ids), Equipment.user_id == user.id).all()
+    if len(items) != len(equipment_ids):
+        return jsonify({"error": "equipment_not_found"}), 404
+
+    checkout = EquipmentCheckout(
+        user_id=user.id,
+        project_id=data.get("project_id") or None,
+        items=[{"equipment_id": e.id, "returned": False} for e in items],
+        notes=data.get("notes"),
+    )
+    for e in items:
+        e.status = "checked_out"
+    db.session.add(checkout)
+    db.session.commit()
+    return jsonify(checkout.to_dict()), 201
+
+
+@api_bp.route("/api/checkouts/<int:checkout_id>/return-item", methods=["POST"])
+@login_required
+def return_checkout_item(checkout_id):
+    """Checks one piece of equipment back in - the item goes straight
+    back to `available` (not waiting for the rest of the sheet)."""
+    user = current_user()
+    checkout = EquipmentCheckout.query.filter_by(id=checkout_id, user_id=user.id).first()
+    if not checkout:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    equipment_id = data.get("equipment_id")
+
+    # deepcopy before mutating - a plain reference reassigned to itself
+    # doesn't register as a change on a JSON column (same convention as
+    # toggle_checklist_item/mark_all_checklist_items above).
+    items = copy.deepcopy(checkout.items or [])
+    found = False
+    for it in items:
+        if it.get("equipment_id") == equipment_id:
+            it["returned"] = True
+            found = True
+            break
+    if not found:
+        return jsonify({"error": "item_not_in_checkout"}), 404
+
+    checkout.items = items
+    equipment = Equipment.query.filter_by(id=equipment_id, user_id=user.id).first()
+    if equipment and equipment.status == "checked_out":
+        equipment.status = "available"
+
+    if all(it.get("returned") for it in items):
+        checkout.returned_at = datetime.utcnow()
+
+    db.session.commit()
+    return jsonify(checkout.to_dict())
+
+
+@api_bp.route("/api/checkouts/<int:checkout_id>/complete", methods=["POST"])
+@login_required
+def complete_checkout(checkout_id):
+    """Force-closes a sheet even if some items were never checked back
+    in (e.g. lost gear, logged separately) - marks it returned so it
+    drops out of the "active" list."""
+    user = current_user()
+    checkout = EquipmentCheckout.query.filter_by(id=checkout_id, user_id=user.id).first()
+    if not checkout:
+        return jsonify({"error": "not_found"}), 404
+    checkout.returned_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(checkout.to_dict())
+
+
+@api_bp.route("/api/checkouts/<int:checkout_id>", methods=["DELETE"])
+@login_required
+def delete_checkout(checkout_id):
+    """Deletes the sheet itself - any equipment still marked checked_out
+    on it goes back to available first, so nothing gets stuck."""
+    user = current_user()
+    checkout = EquipmentCheckout.query.filter_by(id=checkout_id, user_id=user.id).first()
+    if not checkout:
+        return jsonify({"error": "not_found"}), 404
+    for it in (checkout.items or []):
+        if not it.get("returned"):
+            equipment = Equipment.query.filter_by(id=it.get("equipment_id"), user_id=user.id).first()
+            if equipment and equipment.status == "checked_out":
+                equipment.status = "available"
+    db.session.delete(checkout)
     db.session.commit()
     return jsonify({"ok": True})
 

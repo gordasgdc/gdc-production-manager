@@ -316,6 +316,15 @@ button, input, select, textarea{ font-family: var(--font-body); }
 .status-pill.pay-paid .dot{ background: var(--scope); }
 .status-pill.pay-paid{ color: var(--scope); border-color: var(--scope-dim); }
 
+.status-pill.eq-available .dot{ background: var(--scope); }
+.status-pill.eq-available{ color: var(--scope); border-color: var(--scope-dim); }
+.status-pill.eq-checked_out .dot{ background: var(--amber); }
+.status-pill.eq-checked_out{ color: var(--amber); border-color: var(--amber-dim); }
+.status-pill.eq-maintenance .dot{ background: var(--violet); }
+.status-pill.eq-maintenance{ color: var(--violet); border-color: #2C2547; }
+.status-pill.eq-lost .dot{ background: var(--tally); }
+.status-pill.eq-lost{ color: var(--tally); border-color: var(--tally-dim); }
+
 /* ---------------------------------------------------------- tables ---- */
 
 .list{ display:flex; flex-direction:column; gap:10px; }
