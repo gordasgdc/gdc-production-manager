@@ -190,6 +190,10 @@ function mapsUrl(address) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
+function equipStatusPillHtml(status) {
+  return `<span class="status-pill eq-${status}"><span class="dot"></span>${t("eq_" + status)}</span>`;
+}
+
 function miniPipelineHtml(status) {
   const idx = STATUS_ORDER.indexOf(status);
   return `<div class="mini-pipeline" title="${t("status_" + status)}">` +
@@ -321,6 +325,7 @@ const NAV_ITEMS = [
   { href: "clients.html", key: "nav_clients", icon: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0" },
   { href: "courses.html", key: "nav_courses", icon: "M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V4H6.5A2.5 2.5 0 004 6.5v13z" },
   { href: "products.html", key: "nav_products", icon: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" },
+  { href: "equipment.html", key: "nav_equipment", icon: "M3 7h3l2-3h8l2 3h3v13H3zM12 17a4 4 0 100-8 4 4 0 000 8z" },
   { href: "reminders.html", key: "nav_reminders", icon: "M12 8v4l3 3M12 22a2 2 0 002-2h-4a2 2 0 002 2zM18 8a6 6 0 10-12 0c0 6-2 8-2 8h16s-2-2-2-8z" },
   { href: "calendar.html", key: "nav_calendar", icon: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" },
   { href: "help.html", key: "nav_help", icon: "M2 12a10 10 0 1 0 20 0 10 10 0 1 0 -20 0M9.09 9a3 3 0 015.83 1c0 2-3 2-3 3M12 17h.01" },

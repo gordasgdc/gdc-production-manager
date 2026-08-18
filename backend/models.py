@@ -44,6 +44,8 @@ CURRENCIES = ["EUR", "RON"]
 CHECKLIST_TYPES = ["pre_filming", "post_filming", "general"]
 REMINDER_TYPES = ["deadline", "invoice", "meeting", "general"]
 
+EQUIPMENT_STATUSES = ["available", "checked_out", "maintenance", "lost"]
+
 
 def _worst_payment_status(projects):
     """Rolls up a list of projects into one badge-worthy status - the most
@@ -106,6 +108,12 @@ class User(db.Model):
     )
     reminders = db.relationship(
         "Reminder", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    equipment = db.relationship(
+        "Equipment", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    equipment_checkouts = db.relationship(
+        "EquipmentCheckout", backref="owner", lazy=True, cascade="all, delete-orphan"
     )
 
     def set_password(self, password: str) -> None:
@@ -540,4 +548,82 @@ class Reminder(db.Model):
             "reminder_type": self.reminder_type,
             "done": self.done,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class Equipment(db.Model):
+    """One physical gear item (camera, lens, light, mic…), tracked
+    individually so a checkout sheet can name it and its status stays
+    accurate as it moves in and out of storage."""
+
+    __tablename__ = "equipment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    name = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(100), nullable=True)
+    serial_number = db.Column(db.String(100), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="available")
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "category": self.category,
+            "serial_number": self.serial_number,
+            "status": self.status,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class EquipmentCheckout(db.Model):
+    """One handoff sheet: a batch of equipment given to a crew for a
+    project, checked back in item-by-item. `items` is a list of
+    {"equipment_id": int, "returned": bool} dicts — same JSON-list-of-
+    dicts shape as Checklist.items, so it can be toggled the same way."""
+
+    __tablename__ = "equipment_checkouts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=True)
+
+    items = db.Column(db.JSON, nullable=False, default=list)
+    notes = db.Column(db.Text, nullable=True)
+
+    checked_out_at = db.Column(db.DateTime, default=datetime.utcnow)
+    returned_at = db.Column(db.DateTime, nullable=True)
+
+    project = db.relationship("Project", backref=db.backref("equipment_checkouts", lazy=True))
+
+    def to_dict(self) -> dict:
+        items = self.items or []
+        equipment_ids = [it.get("equipment_id") for it in items]
+        equipment_by_id = {
+            e.id: e for e in Equipment.query.filter(Equipment.id.in_(equipment_ids)).all()
+        } if equipment_ids else {}
+        enriched_items = [
+            {
+                "equipment_id": it.get("equipment_id"),
+                "equipment_name": equipment_by_id[it["equipment_id"]].name
+                if it.get("equipment_id") in equipment_by_id else None,
+                "returned": bool(it.get("returned")),
+            }
+            for it in items
+        ]
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "project_title": self.project.title if self.project else None,
+            "items": enriched_items,
+            "returned_count": sum(1 for it in items if it.get("returned")),
+            "total_count": len(items),
+            "notes": self.notes,
+            "checked_out_at": self.checked_out_at.isoformat() if self.checked_out_at else None,
+            "returned_at": self.returned_at.isoformat() if self.returned_at else None,
         }

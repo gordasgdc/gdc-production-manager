@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDC Production Manager — Checkout Report</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{ background: var(--bg); }
+  .report-wrap{ max-width: 760px; margin: 0 auto; padding: 36px 24px 80px; }
+  .report-page{
+    background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius-lg);
+    padding: 40px;
+  }
+  .report-topbar{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom: 24px;
+  }
+  .report-head{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    border-bottom: 1px solid var(--border-soft); padding-bottom: 20px; margin-bottom: 24px;
+  }
+  .report-head .brand-mark{
+    width:34px; height:34px; border-radius:8px;
+    background:linear-gradient(135deg, var(--tally), var(--scope));
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#0d0f14; font-family: var(--font-display);
+  }
+  .report-title{ font-size: 22px; margin: 4px 0 0; }
+  .report-meta-line{ color: var(--text-faint); font-size:12px; font-family: var(--font-mono); }
+  .report-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; margin-bottom: 26px; }
+  .report-field .k{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); font-family: var(--font-mono); margin-bottom:4px; }
+  .report-field .v{ font-size:14px; }
+  .report-section-title{
+    font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint);
+    font-family: var(--font-mono); margin: 24px 0 10px; border-top: 1px solid var(--border-soft); padding-top:18px;
+  }
+  .report-notes{ font-size:13.5px; line-height:1.6; white-space:pre-wrap; }
+  .checkout-item-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 8px 0; border-bottom: 1px solid var(--border-soft); font-size:13.5px;
+  }
+  .checkbox-box{
+    width:16px; height:16px; border: 1.5px solid var(--text-faint); border-radius:4px; flex-shrink:0;
+  }
+  @media print {
+    body{ background:#fff; }
+    .report-wrap{ padding:0; max-width:none; }
+    .report-page{ border:none; border-radius:0; padding:0; }
+    .sidebar, .no-print{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="report-wrap">
+  <div class="report-topbar no-print">
+    <a href="equipment.html" class="btn btn-ghost btn-sm">← <span data-t="cancel">Renunță</span></a>
+    <button class="btn btn-primary btn-sm" id="print-btn">🖨️ <span data-t="print_save_pdf">Printează / Salvează PDF</span></button>
+  </div>
+
+  <div class="report-page" id="report-content">
+    <p style="color:var(--text-faint);">Se încarcă…</p>
+  </div>
+</div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+<script>
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function fieldBlock(label, value) {
+    return `<div class="report-field"><div class="k">${label}</div><div class="v">${value}</div></div>`;
+  }
+
+  function renderReport(c) {
+    document.title = `GDC Production Manager — ${c.project_title || t("checkout_no_project")}`;
+    applyStaticTranslations();
+
+    document.getElementById("report-content").innerHTML = `
+      <div class="report-head">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="brand-mark">G</div>
+          <div>
+            <h1 class="report-title">${t("checkout_sheet_title")}</h1>
+            <div class="report-meta-line">${t("report_generated_on")} ${fmtDate(new Date().toISOString().slice(0,10))}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        ${fieldBlock(t("field_project"), c.project_title ? escapeHtml(c.project_title) : "—")}
+        ${fieldBlock(t("checkout_out_since"), fmtDate((c.checked_out_at || "").slice(0, 10)))}
+        ${fieldBlock(t("checkout_returned"), `${c.returned_count}/${c.total_count}`)}
+        ${fieldBlock(t("field_status"), c.returned_at ? t("checkout_complete") : t("checkout_active"))}
+      </div>
+
+      <div class="report-section-title">${t("checkout_items")}</div>
+      ${c.items.map(it => `
+        <div class="checkout-item-row">
+          <span>${escapeHtml(it.equipment_name || "—")}</span>
+          <span class="checkbox-box">${it.returned ? "✓" : ""}</span>
+        </div>
+      `).join("")}
+
+      ${c.notes ? `
+        <div class="report-section-title">${t("field_notes")}</div>
+        <div class="report-notes">${escapeHtml(c.notes)}</div>
+      ` : ""}
+    `;
+  }
+
+  document.getElementById("print-btn").addEventListener("click", () => window.print());
+
+  requireAuth(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (!id) {
+      document.getElementById("report-content").innerHTML = `<p>Missing checkout id.</p>`;
+      return;
+    }
+    try {
+      const c = await API.get(`/api/checkouts/${id}`);
+      renderReport(c);
+    } catch (e) {
+      document.getElementById("report-content").innerHTML = `<p>${errorMessage(e)}</p>`;
+    }
+  });
+</script>
+</body>
+</html>
