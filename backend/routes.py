@@ -10,7 +10,7 @@ from flask import Blueprint, request, jsonify, send_from_directory, Response
 from werkzeug.utils import secure_filename
 
 from models import (
-    db, Client, Project, WorkflowTemplate, Attachment, Course, DigitalProduct,
+    db, Client, Company, Project, WorkflowTemplate, Attachment, Course, DigitalProduct,
     ChecklistTemplate, Checklist, Reminder,
     PROJECT_STATUSES, PROJECT_TYPES, PAYMENT_STATUSES, COURSE_STATUSES, PRODUCT_TYPES,
     CURRENCIES, CHECKLIST_TYPES, REMINDER_TYPES,
@@ -49,6 +49,144 @@ def meta():
     )
 
 
+# ------------------------------------------------------------ companies ----
+
+@api_bp.route("/api/companies", methods=["GET"])
+@login_required
+def list_companies():
+    user = current_user()
+    q = (request.args.get("q") or "").strip().lower()
+    companies = Company.query.filter_by(user_id=user.id).order_by(Company.name.asc()).all()
+    if q:
+        companies = [c for c in companies if q in (c.name or "").lower() or q in (c.cui or "").lower()]
+    return jsonify([c.to_dict() for c in companies])
+
+
+@api_bp.route("/api/companies/<int:company_id>", methods=["GET"])
+@login_required
+def get_company(company_id):
+    user = current_user()
+    company = Company.query.filter_by(id=company_id, user_id=user.id).first()
+    if not company:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(company.to_dict(include_contacts=True))
+
+
+@api_bp.route("/api/companies", methods=["POST"])
+@login_required
+def create_company():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name_required"}), 400
+
+    company = Company(
+        user_id=user.id,
+        name=name,
+        cui=data.get("cui"),
+        fiscal_address=data.get("fiscal_address"),
+        headquarters_address=data.get("headquarters_address"),
+        notes=data.get("notes"),
+    )
+    db.session.add(company)
+    db.session.commit()
+    return jsonify(company.to_dict()), 201
+
+
+@api_bp.route("/api/companies/<int:company_id>", methods=["PUT"])
+@login_required
+def update_company(company_id):
+    user = current_user()
+    company = Company.query.filter_by(id=company_id, user_id=user.id).first()
+    if not company:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    for field in ("name", "cui", "fiscal_address", "headquarters_address", "notes"):
+        if field in data:
+            setattr(company, field, data[field])
+    db.session.commit()
+    return jsonify(company.to_dict())
+
+
+@api_bp.route("/api/companies/<int:company_id>", methods=["DELETE"])
+@login_required
+def delete_company(company_id):
+    user = current_user()
+    company = Company.query.filter_by(id=company_id, user_id=user.id).first()
+    if not company:
+        return jsonify({"error": "not_found"}), 404
+    # Contacts aren't deleted with their company - they just lose the
+    # link, same as a project keeping client_id nullable when its client
+    # is removed. A firm going away shouldn't silently wipe the people.
+    for contact in company.contacts:
+        contact.company_id = None
+    db.session.delete(company)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/api/companies/<int:company_id>/revenue", methods=["GET"])
+@login_required
+def company_revenue(company_id):
+    """Quarterly + total revenue across every contact at this company -
+    projects (budget/paid, bucketed by the project's created_at quarter)
+    plus paid courses (bucketed by session date). Mirrors the per-currency
+    bucketing pattern already used in dashboard()."""
+    user = current_user()
+    company = Company.query.filter_by(id=company_id, user_id=user.id).first()
+    if not company:
+        return jsonify({"error": "not_found"}), 404
+
+    client_ids = [c.id for c in company.contacts]
+    projects = (
+        Project.query.filter(Project.user_id == user.id, Project.client_id.in_(client_ids)).all()
+        if client_ids else []
+    )
+    courses = (
+        Course.query.filter(Course.user_id == user.id, Course.client_id.in_(client_ids), Course.paid.is_(True)).all()
+        if client_ids else []
+    )
+
+    def quarter_key(d):
+        if not d:
+            return None
+        return f"{d.year}-T{(d.month - 1) // 3 + 1}"
+
+    totals_by_currency = {}
+    by_quarter = {}
+
+    def add(cur, amount_budget, amount_paid, when):
+        bucket = totals_by_currency.setdefault(cur, {"budget": 0.0, "paid": 0.0})
+        bucket["budget"] += amount_budget
+        bucket["paid"] += amount_paid
+        qk = quarter_key(when)
+        if qk:
+            qbucket = by_quarter.setdefault(qk, {}).setdefault(cur, {"budget": 0.0, "paid": 0.0})
+            qbucket["budget"] += amount_budget
+            qbucket["paid"] += amount_paid
+
+    for p in projects:
+        cur = p.currency or user.currency
+        when = p.created_at.date() if p.created_at else None
+        add(cur, p.budget_total or 0, p.amount_paid or 0, when)
+
+    for c in courses:
+        cur = c.currency or user.currency
+        add(cur, c.price or 0, c.price or 0, c.date)
+
+    return jsonify(
+        {
+            "company": company.to_dict(),
+            "totals_by_currency": totals_by_currency,
+            "by_quarter": by_quarter,
+            "project_count": len(projects),
+            "paid_course_count": len(courses),
+        }
+    )
+
+
 # ------------------------------------------------------------- clients -----
 
 @api_bp.route("/api/clients", methods=["GET"])
@@ -56,7 +194,10 @@ def meta():
 def list_clients():
     user = current_user()
     q = (request.args.get("q") or "").strip().lower()
+    company_id = request.args.get("company_id")
     clients = Client.query.filter_by(user_id=user.id).order_by(Client.name.asc()).all()
+    if company_id:
+        clients = [c for c in clients if str(c.company_id) == company_id]
     if q:
         clients = [c for c in clients if q in (c.name or "").lower() or q in (c.company or "").lower()]
     return jsonify([c.to_dict() for c in clients])
@@ -75,6 +216,8 @@ def create_client():
         user_id=user.id,
         name=name,
         company=data.get("company"),
+        company_id=data.get("company_id") or None,
+        role=data.get("role"),
         email=data.get("email"),
         phone=data.get("phone"),
         notes=data.get("notes"),
@@ -93,9 +236,9 @@ def update_client(client_id):
         return jsonify({"error": "not_found"}), 404
 
     data = request.get_json(silent=True) or {}
-    for field in ("name", "company", "email", "phone", "notes"):
+    for field in ("name", "company", "company_id", "role", "email", "phone", "notes"):
         if field in data:
-            setattr(client, field, data[field])
+            setattr(client, field, data[field] or None if field == "company_id" else data[field])
     db.session.commit()
     return jsonify(client.to_dict())
 
@@ -458,14 +601,16 @@ def notifications():
 # --------------------------------------------------------- export/import ---
 
 def build_export_dict(user) -> dict:
+    companies = Company.query.filter_by(user_id=user.id).all()
     clients = Client.query.filter_by(user_id=user.id).all()
     projects = Project.query.filter_by(user_id=user.id).all()
     templates = WorkflowTemplate.query.filter_by(user_id=user.id).all()
 
     return {
-        "export_version": 1,
+        "export_version": 2,
         "exported_at": datetime.utcnow().isoformat(),
         "username": user.username,
+        "companies": [c.to_dict() for c in companies],
         "clients": [c.to_dict() for c in clients],
         "projects": [p.to_dict() for p in projects],
         "templates": [t.to_dict() for t in templates],
@@ -473,15 +618,35 @@ def build_export_dict(user) -> dict:
 
 
 def apply_import_payload(user, payload: dict) -> dict:
+    company_id_map = {}
     id_map = {}
+    imported_companies = 0
     imported_clients = 0
     imported_projects = 0
 
+    for co in payload.get("companies", []):
+        company = Company(
+            user_id=user.id,
+            name=co.get("name") or "—",
+            cui=co.get("cui"),
+            fiscal_address=co.get("fiscal_address"),
+            headquarters_address=co.get("headquarters_address"),
+            notes=co.get("notes"),
+        )
+        db.session.add(company)
+        db.session.flush()
+        if co.get("id") is not None:
+            company_id_map[co["id"]] = company.id
+        imported_companies += 1
+
     for c in payload.get("clients", []):
+        old_company_id = c.get("company_id")
         client = Client(
             user_id=user.id,
             name=c.get("name") or "—",
             company=c.get("company"),
+            company_id=company_id_map.get(old_company_id) if old_company_id else None,
+            role=c.get("role"),
             email=c.get("email"),
             phone=c.get("phone"),
             notes=c.get("notes"),
@@ -515,7 +680,11 @@ def apply_import_payload(user, payload: dict) -> dict:
         imported_projects += 1
 
     db.session.commit()
-    return {"imported_clients": imported_clients, "imported_projects": imported_projects}
+    return {
+        "imported_companies": imported_companies,
+        "imported_clients": imported_clients,
+        "imported_projects": imported_projects,
+    }
 
 
 @api_bp.route("/api/export", methods=["GET"])

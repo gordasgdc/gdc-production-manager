@@ -58,6 +58,18 @@ def _migrate_schema():
         db.session.execute(text("ALTER TABLE users ADD COLUMN recovery_code_hash VARCHAR(255)"))
         db.session.commit()
 
+    # v1.3.0: Client gained company_id/role (linking a contact person to a
+    # full Company record) - the `companies` table itself is brand new, so
+    # db.create_all() above already made it; only ALTER is needed on the
+    # pre-existing `clients` table.
+    existing_client_cols = {row[1] for row in db.session.execute(text("PRAGMA table_info(clients)"))}
+    if "company_id" not in existing_client_cols:
+        db.session.execute(text("ALTER TABLE clients ADD COLUMN company_id INTEGER"))
+        db.session.commit()
+    if "role" not in existing_client_cols:
+        db.session.execute(text("ALTER TABLE clients ADD COLUMN role VARCHAR(100)"))
+        db.session.commit()
+
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)

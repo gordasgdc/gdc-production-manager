@@ -176,6 +176,20 @@ function statusPillHtml(status) {
   return `<span class="status-pill st-${status}"><span class="dot"></span>${t("status_" + status)}</span>`;
 }
 
+/// Payment-status badge (red/amber/green) - same .status-pill visual
+/// language as statusPillHtml, just a different color set (pay-*
+/// modifiers in style.css). `status` can be null (no projects yet, no
+/// badge to show) - callers should check before calling this.
+function payStatusPillHtml(status) {
+  if (!status) return "";
+  return `<span class="status-pill pay-${status}"><span class="dot"></span>${t("pay_" + status)}</span>`;
+}
+
+/// Opens Google Maps at an address - no API key, just a plain search URL.
+function mapsUrl(address) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 function miniPipelineHtml(status) {
   const idx = STATUS_ORDER.indexOf(status);
   return `<div class="mini-pipeline" title="${t("status_" + status)}">` +

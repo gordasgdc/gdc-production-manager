@@ -12,7 +12,11 @@
 <script src="translations.js"></script>
 <script src="script.js"></script>
 <script>
+  let ALL_COMPANIES = [];
   let ALL_CLIENTS = [];
+  // Most existing data is loose contacts (companies are a new concept),
+  // so that's the tab people land on by default.
+  let ACTIVE_TAB = "contacts";
 
   function escapeHtml(str) {
     const div = document.createElement("div");
@@ -28,26 +32,54 @@
           <h1>${t("clients_title")}</h1>
           <p>${t("clients_sub")}</p>
         </div>
-        <button class="btn btn-primary" id="new-client-btn">+ ${t("new_client")}</button>
+        <button class="btn btn-primary" id="new-btn"></button>
+      </div>
+
+      <div class="pill-tabs">
+        <button data-tab="contacts">${t("tab_contacts")}</button>
+        <button data-tab="companies">${t("tab_companies")}</button>
       </div>
 
       <div class="toolbar">
-        <input type="text" class="search-input" id="search-input" placeholder="${t("search_clients")}">
+        <input type="text" class="search-input" id="search-input" placeholder="">
       </div>
 
-      <div class="list" id="clients-list"></div>
+      <div class="list" id="list-root"></div>
       <div id="modal-root"></div>
     `;
 
-    document.getElementById("new-client-btn").addEventListener("click", () => openModal(null));
+    document.querySelectorAll("[data-tab]").forEach(btn => {
+      btn.addEventListener("click", () => { ACTIVE_TAB = btn.dataset.tab; renderPage(); });
+    });
     document.getElementById("search-input").addEventListener("input", renderList);
+    updateTabChrome();
+  }
+
+  function updateTabChrome() {
+    document.querySelectorAll("[data-tab]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.tab === ACTIVE_TAB);
+    });
+    const isCompanies = ACTIVE_TAB === "companies";
+    document.getElementById("new-btn").textContent = "+ " + (isCompanies ? t("new_company") : t("new_client"));
+    document.getElementById("new-btn").onclick = () => isCompanies ? openCompanyModal(null) : openContactModal(null);
+    document.getElementById("search-input").placeholder = isCompanies ? t("search_companies") : t("search_clients");
+    renderList();
   }
 
   function renderList() {
-    const q = (document.getElementById("search-input").value || "").toLowerCase();
-    let items = ALL_CLIENTS.filter(c => !q || c.name.toLowerCase().includes(q) || (c.company || "").toLowerCase().includes(q));
+    if (ACTIVE_TAB === "companies") renderCompaniesList(); else renderContactsList();
+  }
 
-    const list = document.getElementById("clients-list");
+  // ------------------------------------------------------------ contacts --
+
+  function renderContactsList() {
+    const q = (document.getElementById("search-input").value || "").toLowerCase();
+    let items = ALL_CLIENTS.filter(c =>
+      !q || c.name.toLowerCase().includes(q) ||
+      (c.company_name || c.company || "").toLowerCase().includes(q)
+    );
+
+    const list = document.getElementById("list-root");
     if (!items.length) {
       list.innerHTML = `
         <div class="empty-state">
@@ -62,22 +94,23 @@
       <div class="row-card row-card-clickable" style="grid-template-columns: 1.6fr 1fr 1fr auto;" data-preview="${c.id}">
         <div>
           <div class="row-title">${escapeHtml(c.name)}</div>
-          <div class="row-sub">${c.company ? escapeHtml(c.company) : ""}</div>
+          <div class="row-sub">${c.company_name ? escapeHtml(c.company_name) : (c.company ? escapeHtml(c.company) : "")}${c.role ? " · " + escapeHtml(c.role) : ""}</div>
         </div>
         <div class="row-meta">${c.email ? escapeHtml(c.email) : ""}</div>
-        <div class="row-meta mono">${c.project_count} ${c.project_count === 1 ? "proiect" : "proiecte"}</div>
+        <div class="row-meta" style="display:flex; align-items:center; gap:8px;">
+          <span class="mono">${c.project_count} ${c.project_count === 1 ? "proiect" : "proiecte"}</span>
+          ${payStatusPillHtml(c.payment_status)}
+        </div>
         <div class="row-actions">
           <button class="btn btn-danger btn-sm" data-delete="${c.id}">${t("delete")}</button>
         </div>
       </div>
     `).join("");
 
-    // Same Quick Preview convention as projects.html - the row itself is
-    // the entry point, no separate Edit button needed on the row.
     list.querySelectorAll("[data-preview]").forEach(row => {
       row.addEventListener("click", (e) => {
         if (e.target.closest(".row-actions")) return;
-        openPreview(Number(row.dataset.preview));
+        openContactPreview(Number(row.dataset.preview));
       });
     });
     list.querySelectorAll("[data-delete]").forEach(btn => {
@@ -85,10 +118,7 @@
     });
   }
 
-  /// Read-only Quick Preview, same convention as projects.html - plus
-  /// tel:/mailto: links so a phone/email can be acted on with one click
-  /// straight from the preview, not just after opening the edit form.
-  function openPreview(id) {
+  function openContactPreview(id) {
     const c = ALL_CLIENTS.find(x => x.id === id);
     if (!c) return;
 
@@ -100,10 +130,11 @@
             <button class="modal-close" id="preview-close">✕</button>
           </div>
           <div class="preview-body">
-            ${c.company ? `<div class="preview-row"><strong>${t("field_company")}:</strong> ${escapeHtml(c.company)}</div>` : ""}
+            ${c.company_name ? `<div class="preview-row"><strong>${t("field_company")}:</strong> ${escapeHtml(c.company_name)}</div>` : (c.company ? `<div class="preview-row"><strong>${t("field_company")}:</strong> ${escapeHtml(c.company)}</div>` : "")}
+            ${c.role ? `<div class="preview-row"><strong>${t("field_role")}:</strong> ${escapeHtml(c.role)}</div>` : ""}
             ${c.email ? `<div class="preview-row"><strong>${t("field_email")}:</strong> <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></div>` : ""}
             ${c.phone ? `<div class="preview-row"><strong>${t("field_phone")}:</strong> <a href="tel:${escapeHtml(c.phone)}">${escapeHtml(c.phone)}</a></div>` : ""}
-            <div class="preview-row mono">${c.project_count} ${c.project_count === 1 ? "proiect" : "proiecte"}</div>
+            <div class="preview-row mono">${c.project_count} ${c.project_count === 1 ? "proiect" : "proiecte"} ${payStatusPillHtml(c.payment_status)}</div>
             ${c.notes ? `<div class="preview-row"><strong>${t("field_notes")}:</strong> ${escapeHtml(c.notes)}</div>` : ""}
           </div>
           <div class="modal-actions">
@@ -122,12 +153,14 @@
     });
     document.getElementById("preview-edit").addEventListener("click", () => {
       close();
-      openModal(id);
+      openContactModal(id);
     });
   }
 
-  function openModal(id) {
+  function openContactModal(id) {
     const c = id ? ALL_CLIENTS.find(x => x.id === id) : null;
+    const companyOptions = `<option value="">${t("no_company")}</option>` +
+      ALL_COMPANIES.map(co => `<option value="${co.id}" ${c && c.company_id === co.id ? "selected" : ""}>${escapeHtml(co.name)}</option>`).join("");
 
     document.getElementById("modal-root").innerHTML = `
       <div class="modal-backdrop" id="modal-backdrop">
@@ -141,9 +174,15 @@
               <label>${t("field_name")}</label>
               <input type="text" id="f-name" required value="${c ? escapeHtml(c.name) : ""}">
             </div>
-            <div class="field">
-              <label>${t("field_company")}</label>
-              <input type="text" id="f-company" value="${c && c.company ? escapeHtml(c.company) : ""}">
+            <div class="field-row">
+              <div class="field">
+                <label>${t("field_company")}</label>
+                <select id="f-company-id">${companyOptions}</select>
+              </div>
+              <div class="field">
+                <label>${t("field_role")}</label>
+                <input type="text" id="f-role" placeholder="${t("field_role_placeholder")}" value="${c && c.role ? escapeHtml(c.role) : ""}">
+              </div>
             </div>
             <div class="field-row">
               <div class="field">
@@ -179,7 +218,8 @@
       e.preventDefault();
       const payload = {
         name: document.getElementById("f-name").value.trim(),
-        company: document.getElementById("f-company").value,
+        company_id: document.getElementById("f-company-id").value || null,
+        role: document.getElementById("f-role").value,
         email: document.getElementById("f-email").value,
         phone: document.getElementById("f-phone").value,
         notes: document.getElementById("f-notes").value,
@@ -210,8 +250,249 @@
     }
   }
 
+  // ----------------------------------------------------------- companies --
+
+  function renderCompaniesList() {
+    const q = (document.getElementById("search-input").value || "").toLowerCase();
+    let items = ALL_COMPANIES.filter(c => !q || c.name.toLowerCase().includes(q) || (c.cui || "").toLowerCase().includes(q));
+
+    const list = document.getElementById("list-root");
+    if (!items.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">🏢</div>
+          <p><strong>${t("no_companies")}</strong></p>
+          <p style="font-size:12.5px; margin-top:4px;">${t("no_companies_hint")}</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = items.map(c => `
+      <div class="row-card row-card-clickable" style="grid-template-columns: 1.6fr 1fr 1fr auto;" data-preview="${c.id}">
+        <div>
+          <div class="row-title">${escapeHtml(c.name)}</div>
+          <div class="row-sub">${c.cui ? "CUI " + escapeHtml(c.cui) : ""}</div>
+        </div>
+        <div class="row-meta mono">${c.contact_count} ${c.contact_count === 1 ? "contact" : "contacte"}</div>
+        <div class="row-meta">${payStatusPillHtml(c.payment_status)}</div>
+        <div class="row-actions">
+          <button class="btn btn-danger btn-sm" data-delete="${c.id}">${t("delete")}</button>
+        </div>
+      </div>
+    `).join("");
+
+    list.querySelectorAll("[data-preview]").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".row-actions")) return;
+        openCompanyPreview(Number(row.dataset.preview));
+      });
+    });
+    list.querySelectorAll("[data-delete]").forEach(btn => {
+      btn.addEventListener("click", () => deleteCompany(Number(btn.dataset.delete)));
+    });
+  }
+
+  async function openCompanyPreview(id) {
+    let company;
+    try {
+      company = await API.get(`/api/companies/${id}`);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+      return;
+    }
+
+    const contactsHtml = company.contacts.length
+      ? company.contacts.map(ct => `
+          <div class="preview-row" style="padding-left:8px; border-left:2px solid var(--border-soft);">
+            <strong>${escapeHtml(ct.name)}</strong>${ct.role ? ` — ${escapeHtml(ct.role)}` : ""}
+            ${ct.email ? ` · <a href="mailto:${escapeHtml(ct.email)}">${escapeHtml(ct.email)}</a>` : ""}
+            ${ct.phone ? ` · <a href="tel:${escapeHtml(ct.phone)}">${escapeHtml(ct.phone)}</a>` : ""}
+          </div>
+        `).join("")
+      : `<p style="color:var(--text-faint); font-size:12px;">${t("no_contacts_yet")}</p>`;
+
+    document.getElementById("modal-root").innerHTML = `
+      <div class="modal-backdrop" id="preview-backdrop">
+        <div class="modal" style="max-width:520px;">
+          <div class="modal-header">
+            <h3>${escapeHtml(company.name)}</h3>
+            <button class="modal-close" id="preview-close">✕</button>
+          </div>
+          <div class="preview-body">
+            ${company.cui ? `<div class="preview-row"><strong>CUI:</strong> ${escapeHtml(company.cui)}</div>` : ""}
+            ${company.fiscal_address ? `<div class="preview-row"><strong>${t("field_fiscal_address")}:</strong> ${escapeHtml(company.fiscal_address)} <a href="${mapsUrl(company.fiscal_address)}" target="_blank" title="${t("open_in_maps")}">📍</a></div>` : ""}
+            ${company.headquarters_address ? `<div class="preview-row"><strong>${t("field_headquarters_address")}:</strong> ${escapeHtml(company.headquarters_address)} <a href="${mapsUrl(company.headquarters_address)}" target="_blank" title="${t("open_in_maps")}">📍</a></div>` : ""}
+            ${company.payment_status ? `<div class="preview-row">${payStatusPillHtml(company.payment_status)}</div>` : ""}
+            ${company.notes ? `<div class="preview-row"><strong>${t("field_notes")}:</strong> ${escapeHtml(company.notes)}</div>` : ""}
+            <div class="preview-row" style="margin-top:6px;"><strong>${t("tab_contacts")}</strong></div>
+            ${contactsHtml}
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="preview-revenue">${t("revenue_report")}</button>
+            <button type="button" class="btn" id="preview-close-2">${t("cancel")}</button>
+            <button type="button" class="btn btn-primary" id="preview-edit">${t("edit")}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const close = () => { document.getElementById("modal-root").innerHTML = ""; };
+    document.getElementById("preview-close").addEventListener("click", close);
+    document.getElementById("preview-close-2").addEventListener("click", close);
+    document.getElementById("preview-backdrop").addEventListener("click", (e) => {
+      if (e.target.id === "preview-backdrop") close();
+    });
+    document.getElementById("preview-edit").addEventListener("click", () => {
+      close();
+      openCompanyModal(id);
+    });
+    document.getElementById("preview-revenue").addEventListener("click", () => {
+      close();
+      openRevenueModal(id);
+    });
+  }
+
+  function openCompanyModal(id) {
+    const c = id ? ALL_COMPANIES.find(x => x.id === id) : null;
+
+    document.getElementById("modal-root").innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal" style="max-width:480px;">
+          <div class="modal-header">
+            <h3>${id ? t("edit") : t("new_company")}</h3>
+            <button class="modal-close" id="modal-close">✕</button>
+          </div>
+          <form id="company-form">
+            <div class="field">
+              <label>${t("field_name")}</label>
+              <input type="text" id="f-name" required value="${c ? escapeHtml(c.name) : ""}">
+            </div>
+            <div class="field">
+              <label>CUI</label>
+              <input type="text" id="f-cui" value="${c && c.cui ? escapeHtml(c.cui) : ""}">
+            </div>
+            <div class="field">
+              <label>${t("field_fiscal_address")}</label>
+              <input type="text" id="f-fiscal-address" value="${c && c.fiscal_address ? escapeHtml(c.fiscal_address) : ""}">
+            </div>
+            <div class="field">
+              <label>${t("field_headquarters_address")}</label>
+              <input type="text" id="f-hq-address" value="${c && c.headquarters_address ? escapeHtml(c.headquarters_address) : ""}">
+            </div>
+            <div class="field">
+              <label>${t("field_notes")}</label>
+              <textarea id="f-notes">${c && c.notes ? escapeHtml(c.notes) : ""}</textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn" id="modal-cancel">${t("cancel")}</button>
+              <button type="submit" class="btn btn-primary">${t("save")}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const close = () => { document.getElementById("modal-root").innerHTML = ""; };
+    document.getElementById("modal-close").addEventListener("click", close);
+    document.getElementById("modal-cancel").addEventListener("click", close);
+    document.getElementById("modal-backdrop").addEventListener("click", (e) => {
+      if (e.target.id === "modal-backdrop") close();
+    });
+
+    document.getElementById("company-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById("f-name").value.trim(),
+        cui: document.getElementById("f-cui").value,
+        fiscal_address: document.getElementById("f-fiscal-address").value,
+        headquarters_address: document.getElementById("f-hq-address").value,
+        notes: document.getElementById("f-notes").value,
+      };
+      try {
+        if (id) {
+          await API.put(`/api/companies/${id}`, payload);
+        } else {
+          await API.post("/api/companies", payload);
+        }
+        close();
+        showToast(t("saved"));
+        await loadData();
+      } catch (err) {
+        showToast(errorMessage(err), "error");
+      }
+    });
+  }
+
+  async function deleteCompany(id) {
+    if (!confirm(t("confirm_delete_company"))) return;
+    try {
+      await API.del(`/api/companies/${id}`);
+      showToast(t("deleted"));
+      await loadData();
+    } catch (err) {
+      showToast(errorMessage(err), "error");
+    }
+  }
+
+  // --------------------------------------------------------- revenue report
+
+  async function openRevenueModal(companyId) {
+    let data;
+    try {
+      data = await API.get(`/api/companies/${companyId}/revenue`);
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+      return;
+    }
+
+    const quarters = Object.keys(data.by_quarter).sort().reverse();
+    const quarterRows = quarters.length
+      ? quarters.map(q => {
+          const perCurrency = Object.entries(data.by_quarter[q])
+            .map(([cur, v]) => `${fmtMoney(v.paid, cur)} / ${fmtMoney(v.budget, cur)}`)
+            .join(" · ");
+          return `<div class="preview-row"><strong>${q}:</strong> ${perCurrency}</div>`;
+        }).join("")
+      : `<p style="color:var(--text-faint); font-size:12px;">${t("no_revenue_yet")}</p>`;
+
+    const totalRows = Object.entries(data.totals_by_currency)
+      .map(([cur, v]) => `<div class="preview-row"><strong>${cur}:</strong> ${fmtMoney(v.paid, cur)} / ${fmtMoney(v.budget, cur)}</div>`)
+      .join("") || `<p style="color:var(--text-faint); font-size:12px;">${t("no_revenue_yet")}</p>`;
+
+    document.getElementById("modal-root").innerHTML = `
+      <div class="modal-backdrop" id="revenue-backdrop">
+        <div class="modal" style="max-width:480px;">
+          <div class="modal-header">
+            <h3>${t("revenue_report")} — ${escapeHtml(data.company.name)}</h3>
+            <button class="modal-close" id="revenue-close">✕</button>
+          </div>
+          <div class="preview-body">
+            <div class="preview-row mono">${data.project_count} proiecte · ${data.paid_course_count} cursuri plătite</div>
+            <div class="preview-row" style="margin-top:6px;"><strong>${t("total")}</strong></div>
+            ${totalRows}
+            <div class="preview-row" style="margin-top:6px;"><strong>${t("by_quarter")}</strong></div>
+            ${quarterRows}
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="revenue-close-2">${t("cancel")}</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const close = () => { document.getElementById("modal-root").innerHTML = ""; };
+    document.getElementById("revenue-close").addEventListener("click", close);
+    document.getElementById("revenue-close-2").addEventListener("click", close);
+    document.getElementById("revenue-backdrop").addEventListener("click", (e) => {
+      if (e.target.id === "revenue-backdrop") close();
+    });
+  }
+
+  // -------------------------------------------------------------- shared --
+
   async function loadData() {
-    ALL_CLIENTS = await API.get("/api/clients");
+    const [companies, clients] = await Promise.all([API.get("/api/companies"), API.get("/api/clients")]);
+    ALL_COMPANIES = companies;
+    ALL_CLIENTS = clients;
     renderList();
   }
 

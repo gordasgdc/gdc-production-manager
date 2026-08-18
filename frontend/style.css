@@ -309,6 +309,13 @@ button, input, select, textarea{ font-family: var(--font-body); }
 .status-pill.st-delivered .dot{ background: var(--scope); }
 .status-pill.st-delivered{ color: var(--scope); border-color: var(--scope-dim); background: var(--scope-dim); }
 
+.status-pill.pay-unpaid .dot{ background: var(--tally); }
+.status-pill.pay-unpaid{ color: var(--tally); border-color: var(--tally-dim); }
+.status-pill.pay-partial .dot{ background: var(--amber); }
+.status-pill.pay-partial{ color: var(--amber); border-color: var(--amber-dim); }
+.status-pill.pay-paid .dot{ background: var(--scope); }
+.status-pill.pay-paid{ color: var(--scope); border-color: var(--scope-dim); }
+
 /* ---------------------------------------------------------- tables ---- */
 
 .list{ display:flex; flex-direction:column; gap:10px; }
@@ -364,6 +371,15 @@ button, input, select, textarea{ font-family: var(--font-body); }
 }
 .field-row{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field-hint{ font-size:11px; color: var(--text-faint); margin-top:4px; }
+
+.pill-tabs{ display:flex; gap:6px; margin-bottom: 16px; }
+.pill-tabs button{
+  background: var(--panel); border: 1px solid var(--border); color: var(--text-muted);
+  padding: 8px 16px; border-radius: 999px; font-size: 13px; cursor:pointer;
+  transition: all .12s ease;
+}
+.pill-tabs button:hover{ border-color: #3A4150; }
+.pill-tabs button.active{ background: var(--scope-dim); color: var(--scope); border-color: var(--scope-dim); font-weight:600; }
 
 .toolbar{
   display:flex; align-items:center; gap:10px; margin-bottom: 18px; flex-wrap:wrap;
