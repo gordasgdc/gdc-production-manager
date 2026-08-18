@@ -59,7 +59,7 @@
     }
 
     list.innerHTML = items.map(c => `
-      <div class="row-card" style="grid-template-columns: 1.6fr 1fr 1fr auto;">
+      <div class="row-card row-card-clickable" style="grid-template-columns: 1.6fr 1fr 1fr auto;" data-preview="${c.id}">
         <div>
           <div class="row-title">${escapeHtml(c.name)}</div>
           <div class="row-sub">${c.company ? escapeHtml(c.company) : ""}</div>
@@ -67,17 +67,62 @@
         <div class="row-meta">${c.email ? escapeHtml(c.email) : ""}</div>
         <div class="row-meta mono">${c.project_count} ${c.project_count === 1 ? "proiect" : "proiecte"}</div>
         <div class="row-actions">
-          <button class="btn btn-ghost btn-sm" data-edit="${c.id}">${t("edit")}</button>
           <button class="btn btn-danger btn-sm" data-delete="${c.id}">${t("delete")}</button>
         </div>
       </div>
     `).join("");
 
-    list.querySelectorAll("[data-edit]").forEach(btn => {
-      btn.addEventListener("click", () => openModal(Number(btn.dataset.edit)));
+    // Same Quick Preview convention as projects.html - the row itself is
+    // the entry point, no separate Edit button needed on the row.
+    list.querySelectorAll("[data-preview]").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".row-actions")) return;
+        openPreview(Number(row.dataset.preview));
+      });
     });
     list.querySelectorAll("[data-delete]").forEach(btn => {
       btn.addEventListener("click", () => deleteClient(Number(btn.dataset.delete)));
+    });
+  }
+
+  /// Read-only Quick Preview, same convention as projects.html - plus
+  /// tel:/mailto: links so a phone/email can be acted on with one click
+  /// straight from the preview, not just after opening the edit form.
+  function openPreview(id) {
+    const c = ALL_CLIENTS.find(x => x.id === id);
+    if (!c) return;
+
+    document.getElementById("modal-root").innerHTML = `
+      <div class="modal-backdrop" id="preview-backdrop">
+        <div class="modal" style="max-width:460px;">
+          <div class="modal-header">
+            <h3>${escapeHtml(c.name)}</h3>
+            <button class="modal-close" id="preview-close">✕</button>
+          </div>
+          <div class="preview-body">
+            ${c.company ? `<div class="preview-row"><strong>${t("field_company")}:</strong> ${escapeHtml(c.company)}</div>` : ""}
+            ${c.email ? `<div class="preview-row"><strong>${t("field_email")}:</strong> <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></div>` : ""}
+            ${c.phone ? `<div class="preview-row"><strong>${t("field_phone")}:</strong> <a href="tel:${escapeHtml(c.phone)}">${escapeHtml(c.phone)}</a></div>` : ""}
+            <div class="preview-row mono">${c.project_count} ${c.project_count === 1 ? "proiect" : "proiecte"}</div>
+            ${c.notes ? `<div class="preview-row"><strong>${t("field_notes")}:</strong> ${escapeHtml(c.notes)}</div>` : ""}
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="preview-close-2">${t("cancel")}</button>
+            <button type="button" class="btn btn-primary" id="preview-edit">${t("edit")}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const close = () => { document.getElementById("modal-root").innerHTML = ""; };
+    document.getElementById("preview-close").addEventListener("click", close);
+    document.getElementById("preview-close-2").addEventListener("click", close);
+    document.getElementById("preview-backdrop").addEventListener("click", (e) => {
+      if (e.target.id === "preview-backdrop") close();
+    });
+    document.getElementById("preview-edit").addEventListener("click", () => {
+      close();
+      openModal(id);
     });
   }
 

@@ -1,5 +1,5 @@
 """
-license_manager.py — trial de 7 zile + licență lifetime pentru GDC
+license_manager.py — trial de 25 zile + licență lifetime pentru GDC
 Production Manager.
 
 Spre deosebire de DataMover (aplicație Tkinter care blochează O DATĂ, la
@@ -16,7 +16,7 @@ import license_validator
 import machine_id
 from config import DATA_DIR
 
-TRIAL_DAYS = 7
+TRIAL_DAYS = 25
 
 _STATE_PATH = os.path.join(DATA_DIR, "license_state.json")
 
