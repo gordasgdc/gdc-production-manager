@@ -325,6 +325,8 @@ button, input, select, textarea{ font-family: var(--font-body); }
   transition: border-color .12s ease;
 }
 .row-card:hover{ border-color: #343B49; }
+.row-card-clickable{ cursor:pointer; }
+.row-card-clickable:hover{ border-color: var(--scope); }
 
 .row-title{ font-weight:600; font-size: 14px; }
 .row-sub{ font-size: 12px; color: var(--text-muted); margin-top:2px; }
@@ -412,6 +414,12 @@ button, input, select, textarea{ font-family: var(--font-body); }
   display:flex; justify-content:flex-end; gap: 10px; margin-top: 18px;
   padding-top: 16px; border-top: 1px solid var(--border-soft);
 }
+
+.preview-body{ display:flex; flex-direction:column; gap:10px; }
+.preview-row{ font-size:13.5px; color: var(--text); line-height:1.5; }
+.preview-row strong{ color: var(--text-muted); font-weight:500; margin-right:4px; }
+.preview-row a{ color: var(--scope); text-decoration:none; }
+.preview-row a:hover{ text-decoration:underline; }
 
 /* ---------------------------------------------------------- toast ----- */
 

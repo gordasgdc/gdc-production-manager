@@ -72,7 +72,7 @@
     }
 
     list.innerHTML = items.map(p => `
-      <div class="row-card">
+      <div class="row-card row-card-clickable" data-preview="${p.id}">
         <div>
           <div class="row-title">${escapeHtml(p.title)}</div>
           <div class="row-sub">${p.client_name ? escapeHtml(p.client_name) : ""} ${p.shoot_location ? "· " + escapeHtml(p.shoot_location) : ""}</div>
@@ -88,20 +88,69 @@
         <div class="row-actions">
           <a class="btn btn-ghost btn-sm" href="project-report.html?id=${p.id}" title="${t("project_report")}">📄</a>
           ${p.status !== "delivered" ? `<button class="btn btn-ghost btn-sm" data-next-step="${p.id}" title="${t("next_step")}">→</button>` : ""}
-          <button class="btn btn-ghost btn-sm" data-edit="${p.id}">${t("edit")}</button>
           <button class="btn btn-danger btn-sm" data-delete="${p.id}">${t("delete")}</button>
         </div>
       </div>
     `).join("");
 
-    list.querySelectorAll("[data-edit]").forEach(btn => {
-      btn.addEventListener("click", () => openModal(Number(btn.dataset.edit)));
+    // The whole row opens the read-only Quick Preview - a dedicated Edit
+    // button became redundant once clicking anywhere on a project does
+    // that; row-actions (report/next-step/delete) stop the click from
+    // also triggering the preview, since they're more specific/destructive.
+    list.querySelectorAll("[data-preview]").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".row-actions")) return;
+        openPreview(Number(row.dataset.preview));
+      });
     });
     list.querySelectorAll("[data-delete]").forEach(btn => {
       btn.addEventListener("click", () => deleteProject(Number(btn.dataset.delete)));
     });
     list.querySelectorAll("[data-next-step]").forEach(btn => {
       btn.addEventListener("click", () => advanceNextStep(Number(btn.dataset.nextStep)));
+    });
+  }
+
+  /// Read-only Quick Preview - the fast path to "just look at this
+  /// project" without opening the full edit form. Its own "Editează"
+  /// button hands off to the existing openModal() edit flow.
+  function openPreview(id) {
+    const p = ALL_PROJECTS.find(x => x.id === id);
+    if (!p) return;
+
+    document.getElementById("modal-root").innerHTML = `
+      <div class="modal-backdrop" id="preview-backdrop">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>${escapeHtml(p.title)}</h3>
+            <button class="modal-close" id="preview-close">✕</button>
+          </div>
+          <div class="preview-body">
+            <div class="preview-row">${statusPillHtml(p.status)} <span class="row-sub">${t("type_" + p.project_type)}</span></div>
+            ${p.client_name ? `<div class="preview-row"><strong>${t("field_client")}:</strong> ${escapeHtml(p.client_name)}</div>` : ""}
+            ${p.shoot_location ? `<div class="preview-row"><strong>${t("field_location")}:</strong> ${escapeHtml(p.shoot_location)}</div>` : ""}
+            <div class="preview-row"><strong>${t("field_shoot_date")}:</strong> ${fmtDate(p.shoot_date)}</div>
+            <div class="preview-row"><strong>${t("field_delivery_date")}:</strong> ${fmtDate(p.delivery_date)}</div>
+            <div class="preview-row"><strong>${t("field_budget")}:</strong> ${fmtMoney(p.amount_paid, p.currency)} / ${fmtMoney(p.budget_total, p.currency)} · ${t("pay_" + p.payment_status)}</div>
+            ${p.notes ? `<div class="preview-row"><strong>${t("field_notes")}:</strong> ${escapeHtml(p.notes)}</div>` : ""}
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="preview-close-2">${t("cancel")}</button>
+            <button type="button" class="btn btn-primary" id="preview-edit">${t("edit")}</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const close = () => { document.getElementById("modal-root").innerHTML = ""; };
+    document.getElementById("preview-close").addEventListener("click", close);
+    document.getElementById("preview-close-2").addEventListener("click", close);
+    document.getElementById("preview-backdrop").addEventListener("click", (e) => {
+      if (e.target.id === "preview-backdrop") close();
+    });
+    document.getElementById("preview-edit").addEventListener("click", () => {
+      close();
+      openModal(id);
     });
   }
 
