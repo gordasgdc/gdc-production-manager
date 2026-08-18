@@ -45,6 +45,21 @@ CHECKLIST_TYPES = ["pre_filming", "post_filming", "general"]
 REMINDER_TYPES = ["deadline", "invoice", "meeting", "general"]
 
 
+def _worst_payment_status(projects):
+    """Rolls up a list of projects into one badge-worthy status - the most
+    urgent one wins, so a client/company with even ONE unpaid project shows
+    red, not a falsely-reassuring average. None means "no projects yet",
+    which callers render as no badge at all rather than a false "paid"."""
+    statuses = {p.payment_status for p in projects if p.payment_status}
+    if "unpaid" in statuses:
+        return "unpaid"
+    if "partial" in statuses:
+        return "partial"
+    if "paid" in statuses:
+        return "paid"
+    return None
+
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -68,6 +83,9 @@ class User(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    companies = db.relationship(
+        "Company", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
     clients = db.relationship(
         "Client", backref="owner", lazy=True, cascade="all, delete-orphan"
     )
@@ -135,14 +153,63 @@ class WebAuthnCredential(db.Model):
     user = db.relationship("User", backref=db.backref("webauthn_credentials", lazy=True, cascade="all, delete-orphan"))
 
 
-class Client(db.Model):
-    __tablename__ = "clients"
+class Company(db.Model):
+    """A firm/business, with full fiscal details - distinct from the
+    individual people (Client rows) who work there. A Client optionally
+    points at one Company via `company_id`; the firm itself never has a
+    single "email/phone" of its own here, on purpose - you always reach
+    a specific person, per Cristi's ask ("colaborare la prima mână")."""
+
+    __tablename__ = "companies"
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     name = db.Column(db.String(200), nullable=False)
+    cui = db.Column(db.String(50), nullable=True)
+    fiscal_address = db.Column(db.String(400), nullable=True)
+    headquarters_address = db.Column(db.String(400), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # backref name "company_obj" (not "company") deliberately avoids
+    # colliding with Client.company, the older free-text field kept for
+    # backward compatibility.
+    contacts = db.relationship("Client", backref="company_obj", lazy=True)
+
+    def to_dict(self, include_contacts=False) -> dict:
+        all_projects = [p for c in self.contacts for p in c.projects]
+        data = {
+            "id": self.id,
+            "name": self.name,
+            "cui": self.cui,
+            "fiscal_address": self.fiscal_address,
+            "headquarters_address": self.headquarters_address,
+            "notes": self.notes,
+            "contact_count": len(self.contacts),
+            "payment_status": _worst_payment_status(all_projects),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_contacts:
+            data["contacts"] = [c.to_dict() for c in self.contacts]
+        return data
+
+
+class Client(db.Model):
+    """A contact PERSON - historically the only entity here (hence the
+    legacy `company` free-text field), now optionally linked to a full
+    Company record via `company_id`, with a `role` (department/title) at
+    that company."""
+
+    __tablename__ = "clients"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
+
+    name = db.Column(db.String(200), nullable=False)
     company = db.Column(db.String(200), nullable=True)
+    role = db.Column(db.String(100), nullable=True)
     email = db.Column(db.String(200), nullable=True)
     phone = db.Column(db.String(50), nullable=True)
     notes = db.Column(db.Text, nullable=True)
@@ -156,11 +223,15 @@ class Client(db.Model):
             "id": self.id,
             "name": self.name,
             "company": self.company,
+            "company_id": self.company_id,
+            "company_name": self.company_obj.name if self.company_obj else None,
+            "role": self.role,
             "email": self.email,
             "phone": self.phone,
             "notes": self.notes,
             "project_count": len(self.projects),
             "course_count": len(self.courses),
+            "payment_status": _worst_payment_status(self.projects),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

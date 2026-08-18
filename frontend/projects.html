@@ -84,6 +84,7 @@
         <div class="row-meta">
           <div class="mono">${t("field_delivery_date")}: ${fmtDate(p.delivery_date)}</div>
           <div class="mono">${fmtMoney(p.amount_paid, p.currency)} / ${fmtMoney(p.budget_total, p.currency)}</div>
+          <div style="margin-top:4px;">${payStatusPillHtml(p.payment_status)}</div>
         </div>
         <div class="row-actions">
           <a class="btn btn-ghost btn-sm" href="project-report.html?id=${p.id}" title="${t("project_report")}">📄</a>
