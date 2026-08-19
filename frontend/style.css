@@ -115,6 +115,15 @@ button, input, select, textarea{ font-family: var(--font-body); }
   gap: 4px;
 }
 
+#update-banner-slot:not(:empty){ grid-column: 1 / -1; }
+.update-banner{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  background: var(--scope-dim); border-bottom: 1px solid var(--border-soft);
+  padding: 10px 20px; font-size: 13px;
+}
+.update-banner .msg{ flex:1; min-width:200px; }
+.update-banner strong{ color: var(--scope); }
+
 .brand{
   display:flex; align-items:center; gap:10px;
   padding: 6px 8px 20px 8px;

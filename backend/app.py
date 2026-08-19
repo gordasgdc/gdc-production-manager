@@ -80,6 +80,11 @@ def _migrate_schema():
         db.session.execute(text("ALTER TABLE projects ADD COLUMN imported_structure JSON"))
         db.session.commit()
 
+    # v1.4.0: User gained calendar_token (stable ICS "subscribe by URL" feed).
+    if "calendar_token" not in existing_cols:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN calendar_token VARCHAR(64)"))
+        db.session.commit()
+
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)

@@ -129,7 +129,7 @@
           <div class="preview-body">
             <div class="preview-row">${statusPillHtml(p.status)} <span class="row-sub">${t("type_" + p.project_type)}</span></div>
             ${p.client_name ? `<div class="preview-row"><strong>${t("field_client")}:</strong> ${escapeHtml(p.client_name)}</div>` : ""}
-            ${p.shoot_location ? `<div class="preview-row"><strong>${t("field_location")}:</strong> ${escapeHtml(p.shoot_location)}</div>` : ""}
+            ${p.shoot_location ? `<div class="preview-row"><strong>${t("field_location")}:</strong> ${escapeHtml(p.shoot_location)} <a href="${mapsUrl(p.shoot_location)}" target="_blank" title="${t("open_in_maps")}">📍</a></div>` : ""}
             <div class="preview-row"><strong>${t("field_shoot_date")}:</strong> ${fmtDate(p.shoot_date)}</div>
             <div class="preview-row"><strong>${t("field_delivery_date")}:</strong> ${fmtDate(p.delivery_date)}</div>
             <div class="preview-row"><strong>${t("field_budget")}:</strong> ${fmtMoney(p.amount_paid, p.currency)} / ${fmtMoney(p.budget_total, p.currency)} · ${t("pay_" + p.payment_status)}</div>

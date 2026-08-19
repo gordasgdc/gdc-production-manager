@@ -347,6 +347,45 @@ const NAV_ITEMS = [
   { href: "settings.html", key: "nav_settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM4 12h2m12 0h2M12 4v2m0 12v2M6.3 6.3l1.4 1.4m8.6 8.6l1.4 1.4M6.3 17.7l1.4-1.4m8.6-8.6l1.4-1.4" },
 ];
 
+/// Checks for a newer version automatically on every page load (not
+/// just the manual button in Settings) and shows a dismissible banner
+/// spanning the full app width. Dismissal is per-version (same
+/// gdcpm_dismissed_update_version convention as the sibling GDC Swift
+/// apps) - dismissing v1.5.0's banner doesn't hide a real v1.6.0 later.
+async function checkUpdateBanner() {
+  const slot = document.getElementById("update-banner-slot");
+  if (!slot) return;
+  try {
+    const result = await API.get("/api/update/check");
+    if (!result.update_available) return;
+    const dismissed = localStorage.getItem("gdcpm_dismissed_update_version");
+    if (dismissed === result.latest_version) return;
+
+    const platform = navigator.platform.toLowerCase().includes("mac") ? "mac" : "windows";
+    const url = result.download_url[platform] || result.download_url.mac;
+
+    slot.innerHTML = `
+      <div class="update-banner">
+        <span class="msg">${tf("update_available", { version: result.latest_version })}${result.changes ? " — " + escapeHtmlShared(result.changes) : ""}</span>
+        <a class="btn btn-primary btn-sm" href="${url}" target="_blank">${t("update_download_btn")}</a>
+        <button class="btn btn-ghost btn-sm" id="dismiss-update-banner">${t("dismiss")}</button>
+      </div>
+    `;
+    document.getElementById("dismiss-update-banner").addEventListener("click", () => {
+      localStorage.setItem("gdcpm_dismissed_update_version", result.latest_version);
+      slot.innerHTML = "";
+    });
+  } catch (e) {
+    // silent - a failed update check should never block using the app
+  }
+}
+
+function escapeHtmlShared(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
 function renderShell(activeHref, user) {
   const shell = document.getElementById("app-shell");
   if (!shell) return;
@@ -359,6 +398,7 @@ function renderShell(activeHref, user) {
   `).join("");
 
   shell.innerHTML = `
+    <div id="update-banner-slot"></div>
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">G</div>
@@ -386,6 +426,8 @@ function renderShell(activeHref, user) {
     </aside>
     <main class="main" id="main-content"></main>
   `;
+
+  checkUpdateBanner();
 
   document.getElementById("theme-toggle-btn").addEventListener("click", async () => {
     const next = CURRENT_THEME === "light" ? "dark" : "light";

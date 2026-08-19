@@ -247,6 +247,7 @@ const TRANSLATIONS = {
     webauthn_enable_btn: "Activează Touch ID / Windows Hello",
     webauthn_enabled_status: "✅ Activat pe acest calculator.",
     check_updates_btn: "Verifică actualizări",
+    dismiss: "Ascunde",
     update_checking: "Se verifică…",
     update_none: "Ai deja ultima versiune.",
     update_available: "Versiune nouă disponibilă: {version}",
@@ -420,6 +421,8 @@ const TRANSLATIONS = {
     mark_done: "Marchează ca rezolvat",
     show_done: "Arată rezolvate",
     export_calendar: "Exportă calendar (.ics)",
+    subscribe_calendar: "Abonează-te",
+    subscribe_calendar_hint: "Copiază linkul și adaugă-l în Google Calendar (Alte calendare → Din URL) sau Apple Calendar (Fișier → Nou abonament de calendar). Se actualizează singur — nu mai trebuie să exporți din nou.",
   },
 
   en: {
@@ -668,6 +671,7 @@ const TRANSLATIONS = {
     webauthn_enable_btn: "Enable Touch ID / Windows Hello",
     webauthn_enabled_status: "✅ Enabled on this computer.",
     check_updates_btn: "Check for updates",
+    dismiss: "Dismiss",
     update_checking: "Checking…",
     update_none: "You already have the latest version.",
     update_available: "New version available: {version}",
@@ -841,6 +845,8 @@ const TRANSLATIONS = {
     mark_done: "Mark as done",
     show_done: "Show done",
     export_calendar: "Export calendar (.ics)",
+    subscribe_calendar: "Subscribe",
+    subscribe_calendar_hint: "Copy the link and add it in Google Calendar (Other calendars → From URL) or Apple Calendar (File → New Calendar Subscription). It updates itself — no need to export again.",
   },
 
   es: {
@@ -1089,6 +1095,7 @@ const TRANSLATIONS = {
     webauthn_enable_btn: "Activar Touch ID / Windows Hello",
     webauthn_enabled_status: "✅ Activado en este ordenador.",
     check_updates_btn: "Buscar actualizaciones",
+    dismiss: "Ocultar",
     update_checking: "Comprobando…",
     update_none: "Ya tienes la última versión.",
     update_available: "Nueva versión disponible: {version}",
@@ -1262,6 +1269,8 @@ const TRANSLATIONS = {
     mark_done: "Marcar como hecho",
     show_done: "Mostrar hechos",
     export_calendar: "Exportar calendario (.ics)",
+    subscribe_calendar: "Suscribirse",
+    subscribe_calendar_hint: "Copia el enlace y añádelo en Google Calendar (Otros calendarios → Desde URL) o Apple Calendar (Archivo → Nueva suscripción de calendario). Se actualiza solo — no hace falta exportar de nuevo.",
   },
 };
 
