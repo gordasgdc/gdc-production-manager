@@ -115,7 +115,7 @@ button, input, select, textarea{ font-family: var(--font-body); }
   gap: 4px;
 }
 
-#update-banner-slot:not(:empty){ grid-column: 1 / -1; }
+#update-banner-slot{ grid-column: 1 / -1; }
 .update-banner{
   display:flex; align-items:center; gap:12px; flex-wrap:wrap;
   background: var(--scope-dim); border-bottom: 1px solid var(--border-soft);
@@ -196,6 +196,8 @@ button, input, select, textarea{ font-family: var(--font-body); }
 .main{
   padding: 28px 36px 60px 36px;
   max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .page-header{
