@@ -12,7 +12,7 @@ import secrets
 
 APP_NAME = "GDCProductionManager"
 APP_VERSION = "1.2.1"  # actualizeaza aici la fiecare "git tag vX.Y.Z" - vezi si docs/update.json
-APP_VERSION_URL = "https://gordasgdc.github.io/gdc-production-manager/update.json"
+APP_VERSION_URL = "https://gordas.dev/update.json"
 BUNDLE_ID = "com.gordasgdc.productionmanager"
 
 
