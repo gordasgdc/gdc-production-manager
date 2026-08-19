@@ -1,7 +1,7 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "release_date": "2026-08-19",
-  "changes": "Firme si persoane de contact (CRM), inventar echipamente cu fise de predare/primire, Quick Preview pe proiecte/clienti, badge-uri de plata, selector nativ de folder, import clipuri din DataMover, linkuri Google Maps, abonare calendar prin URL, banner automat de actualizare, trial extins la 25 de zile.",
+  "changes": "Fix layout: bara laterala se stricta pe unele ecrane cand nu era disponibil un update (bug de grid CSS).",
   "download_url": {
     "mac": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-mac.zip",
     "windows": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-windows.zip"
