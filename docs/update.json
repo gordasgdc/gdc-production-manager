@@ -1,7 +1,7 @@
 {
-  "version": "1.1.7",
-  "release_date": "2026-08-17",
-  "changes": "Scriptul de dezinstalare Mac curata acum si eventuale instalari vechi ramase in /Applications/Applications/ (bug de packaging din versiunile v1.1.0-v1.1.5).",
+  "version": "1.2.0",
+  "release_date": "2026-08-19",
+  "changes": "Firme si persoane de contact (CRM), inventar echipamente cu fise de predare/primire, Quick Preview pe proiecte/clienti, badge-uri de plata, selector nativ de folder, import clipuri din DataMover, linkuri Google Maps, abonare calendar prin URL, banner automat de actualizare, trial extins la 25 de zile.",
   "download_url": {
     "mac": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-mac.zip",
     "windows": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-windows.zip"
