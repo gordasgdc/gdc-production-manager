@@ -207,6 +207,13 @@ const TRANSLATIONS = {
     notif_deadline_overdue: "predare depășită cu {days} zile",
     notif_payment_outstanding: "rest de încasat: {amount}",
 
+    datamover_import_title: "Import DataMover",
+    datamover_import_hint: "Încarcă un fișier exportat de DataMover (JSON/CSV) ca să extragi automat numărul de clipuri și structura.",
+    datamover_import_btn: "Importă fișier",
+    datamover_none_yet: "Niciun import încă.",
+    datamover_clip_count: "{count} clipuri importate",
+    datamover_no_count: "Fișier importat, dar nu am găsit un număr de clipuri recognoscibil.",
+
     attachments_title: "Atașamente",
     attach_upload_hint: "Click pentru a adăuga un fișier (PDF, imagine, document, arhivă)",
     attach_uploading: "Se încarcă…",
@@ -621,6 +628,13 @@ const TRANSLATIONS = {
     notif_deadline_overdue: "overdue by {days} days",
     notif_payment_outstanding: "outstanding: {amount}",
 
+    datamover_import_title: "DataMover import",
+    datamover_import_hint: "Upload a file exported by DataMover (JSON/CSV) to automatically extract the clip count and structure.",
+    datamover_import_btn: "Import file",
+    datamover_none_yet: "No import yet.",
+    datamover_clip_count: "{count} clips imported",
+    datamover_no_count: "File imported, but no recognizable clip count was found.",
+
     attachments_title: "Attachments",
     attach_upload_hint: "Click to add a file (PDF, image, document, archive)",
     attach_uploading: "Uploading…",
@@ -1034,6 +1048,13 @@ const TRANSLATIONS = {
     notif_deadline_today: "entrega hoy",
     notif_deadline_overdue: "entrega atrasada {days} días",
     notif_payment_outstanding: "pendiente de cobro: {amount}",
+
+    datamover_import_title: "Importar DataMover",
+    datamover_import_hint: "Sube un archivo exportado por DataMover (JSON/CSV) para extraer automáticamente el número de clips y la estructura.",
+    datamover_import_btn: "Importar archivo",
+    datamover_none_yet: "Aún no hay ninguna importación.",
+    datamover_clip_count: "{count} clips importados",
+    datamover_no_count: "Archivo importado, pero no se encontró un número de clips reconocible.",
 
     attachments_title: "Adjuntos",
     attach_upload_hint: "Haz clic para añadir un archivo (PDF, imagen, documento, archivo comprimido)",

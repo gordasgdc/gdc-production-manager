@@ -19,6 +19,7 @@ from models import (
 )
 from auth import login_required, current_user
 from config import ATTACHMENTS_DIR
+import datamover_import
 
 api_bp = Blueprint("api", __name__)
 
@@ -503,6 +504,33 @@ def delete_project(project_id):
     db.session.delete(project)
     db.session.commit()
     return jsonify({"ok": True})
+
+
+@api_bp.route("/api/projects/<int:project_id>/import-datamover", methods=["POST"])
+@login_required
+def import_datamover(project_id):
+    """Uploads a DataMover export/log file and extracts a clip count +
+    structure onto the project - see backend/datamover_import.py for
+    what formats are actually understood right now."""
+    user = current_user()
+    project = Project.query.filter_by(id=project_id, user_id=user.id).first()
+    if not project:
+        return jsonify({"error": "not_found"}), 404
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"error": "no_file"}), 400
+
+    try:
+        result = datamover_import.parse(file.filename, file.read())
+    except datamover_import.DataMoverImportError as e:
+        return jsonify({"error": "import_failed", "detail": str(e)}), 400
+
+    project.imported_clip_count = result.get("clip_count")
+    project.imported_structure = result.get("structure")
+    project.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(project.to_dict())
 
 
 # ------------------------------------------------------------ equipment ----
