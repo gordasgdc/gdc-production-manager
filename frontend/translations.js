@@ -109,6 +109,7 @@ const TRANSLATIONS = {
     no_client: "— fără client —",
 
     save: "Salvează",
+    browse: "Alege…",
     cancel: "Renunță",
     edit: "Editează",
     delete: "Șterge",
@@ -522,6 +523,7 @@ const TRANSLATIONS = {
     no_client: "— no client —",
 
     save: "Save",
+    browse: "Browse…",
     cancel: "Cancel",
     edit: "Edit",
     delete: "Delete",
@@ -935,6 +937,7 @@ const TRANSLATIONS = {
     no_client: "— sin cliente —",
 
     save: "Guardar",
+    browse: "Elegir…",
     cancel: "Cancelar",
     edit: "Editar",
     delete: "Eliminar",

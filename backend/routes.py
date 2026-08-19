@@ -3,8 +3,10 @@ GDC Production Manager - API routes for clients, projects, templates, dashboard.
 """
 
 import os
+import sys
 import uuid
 import copy
+import subprocess
 from datetime import datetime, date, timedelta
 from flask import Blueprint, request, jsonify, send_from_directory, Response
 from werkzeug.utils import secure_filename
@@ -48,6 +50,52 @@ def meta():
             "equipment_statuses": EQUIPMENT_STATUSES,
         }
     )
+
+
+# --------------------------------------------------------- folder picker ---
+
+@api_bp.route("/api/pick-folder", methods=["POST"])
+@login_required
+def pick_folder():
+    """Opens the OS's own native folder-choosing dialog, server-side. A
+    browser can't show a real native dialog for security reasons - but
+    this Flask process runs locally with full OS access (same reasoning
+    as machine_id.py's own shell-outs), so it can ask the OS directly
+    and hand the chosen path back to the page that requested it."""
+    try:
+        if sys.platform == "darwin":
+            # A separate `osascript` process - safe to call from any
+            # thread (Flask runs threaded=True), since it's not touching
+            # any GUI toolkit inside this Python process at all.
+            result = subprocess.run(
+                ["osascript", "-e", "POSIX path of (choose folder)"],
+                capture_output=True, text=True, timeout=120,
+            )
+            if result.returncode != 0:
+                return jsonify({"path": None})  # user cancelled - not an error
+            return jsonify({"path": result.stdout.strip() or None})
+
+        elif sys.platform.startswith("win"):
+            # tkinter ships with standard Python/PyInstaller builds, no
+            # extra dependency. Unlike macOS, Windows doesn't require
+            # GUI calls to happen on the process's very first thread, so
+            # this is safe to run on whichever thread Flask is
+            # handling this request on.
+            import tkinter
+            from tkinter import filedialog
+            root = tkinter.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            path = filedialog.askdirectory()
+            root.destroy()
+            return jsonify({"path": path or None})
+
+        else:
+            return jsonify({"error": "unsupported_platform"}), 501
+    except subprocess.TimeoutExpired:
+        return jsonify({"path": None})
+    except Exception as e:
+        return jsonify({"error": "picker_failed", "detail": str(e)}), 500
 
 
 # ------------------------------------------------------------ companies ----

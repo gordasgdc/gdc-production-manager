@@ -219,15 +219,24 @@
             </div>
             <div class="field">
               <label>${t("field_path_raw")}</label>
-              <input type="text" id="f-path-raw" value="${p && p.path_raw ? escapeHtml(p.path_raw) : ""}">
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="f-path-raw" style="flex:1;" value="${p && p.path_raw ? escapeHtml(p.path_raw) : ""}">
+                <button type="button" class="btn btn-ghost btn-sm" data-pick-folder="f-path-raw">${t("browse")}</button>
+              </div>
             </div>
             <div class="field">
               <label>${t("field_path_edit")}</label>
-              <input type="text" id="f-path-edit" value="${p && p.path_edit ? escapeHtml(p.path_edit) : ""}">
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="f-path-edit" style="flex:1;" value="${p && p.path_edit ? escapeHtml(p.path_edit) : ""}">
+                <button type="button" class="btn btn-ghost btn-sm" data-pick-folder="f-path-edit">${t("browse")}</button>
+              </div>
             </div>
             <div class="field">
               <label>${t("field_path_export")}</label>
-              <input type="text" id="f-path-export" value="${p && p.path_export ? escapeHtml(p.path_export) : ""}">
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="f-path-export" style="flex:1;" value="${p && p.path_export ? escapeHtml(p.path_export) : ""}">
+                <button type="button" class="btn btn-ghost btn-sm" data-pick-folder="f-path-export">${t("browse")}</button>
+              </div>
             </div>
             <div class="field-row">
               <div class="field">
@@ -292,6 +301,10 @@
     document.getElementById("modal-cancel").addEventListener("click", close);
     document.getElementById("modal-backdrop").addEventListener("click", (e) => {
       if (e.target.id === "modal-backdrop") close();
+    });
+
+    document.querySelectorAll("[data-pick-folder]").forEach(btn => {
+      btn.addEventListener("click", () => pickFolderInto(btn.dataset.pickFolder));
     });
 
     if (id) {
