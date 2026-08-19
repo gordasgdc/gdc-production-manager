@@ -194,6 +194,21 @@ function equipStatusPillHtml(status) {
   return `<span class="status-pill eq-${status}"><span class="dot"></span>${t("eq_" + status)}</span>`;
 }
 
+/// Opens the OS's own native folder picker (via /api/pick-folder, which
+/// runs server-side since a browser can't show a real native dialog) and
+/// fills the given text input with whatever the user chose. A cancelled
+/// dialog leaves the field untouched - never clears it.
+async function pickFolderInto(inputId) {
+  try {
+    const result = await API.post("/api/pick-folder");
+    if (result.path) {
+      document.getElementById(inputId).value = result.path;
+    }
+  } catch (e) {
+    showToast(errorMessage(e), "error");
+  }
+}
+
 function miniPipelineHtml(status) {
   const idx = STATUS_ORDER.indexOf(status);
   return `<div class="mini-pipeline" title="${t("status_" + status)}">` +
