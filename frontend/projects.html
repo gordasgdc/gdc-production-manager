@@ -271,6 +271,17 @@
             ` : ""}
             ${id ? `
               <div class="field">
+                <label>${t("datamover_import_title")}</label>
+                <div class="field-hint" style="margin-bottom:8px;">${t("datamover_import_hint")}</div>
+                <div id="datamover-status">
+                  ${p && p.imported_clip_count !== null && p.imported_clip_count !== undefined
+                    ? `<div class="preview-row mono">${tf("datamover_clip_count", { count: p.imported_clip_count })}</div>`
+                    : `<p style="color:var(--text-faint); font-size:12px;">${t("datamover_none_yet")}</p>`}
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" id="datamover-import-btn" style="margin-top:8px;">${t("datamover_import_btn")}</button>
+                <input type="file" id="datamover-file-input" accept=".json,.csv,.pdf" style="display:none;">
+              </div>
+              <div class="field">
                 <label>${t("attachments_title")}</label>
                 <div class="attachments-list" id="attachments-list"><p style="color:var(--text-faint); font-size:12px;">…</p></div>
                 <div class="attach-drop" id="attach-drop">${t("attach_upload_hint")}</div>
@@ -308,6 +319,15 @@
     });
 
     if (id) {
+      document.getElementById("datamover-import-btn").addEventListener("click", () => {
+        document.getElementById("datamover-file-input").click();
+      });
+      document.getElementById("datamover-file-input").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        e.target.value = "";
+        if (file) importDataMover(id, file);
+      });
+
       loadAttachments(id);
       document.getElementById("attach-drop").addEventListener("click", () => {
         document.getElementById("attach-file-input").click();
@@ -399,6 +419,32 @@
     container.querySelectorAll("[data-remove-attachment]").forEach(btn => {
       btn.addEventListener("click", () => removeAttachment(projectId, Number(btn.dataset.removeAttachment)));
     });
+  }
+
+  async function importDataMover(projectId, file) {
+    const statusEl = document.getElementById("datamover-status");
+    if (statusEl) statusEl.innerHTML = `<p style="color:var(--text-faint); font-size:12px;">${t("attach_uploading")}</p>`;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/projects/${projectId}/import-datamover`, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || data.error || "request_failed");
+      showToast(t("saved"));
+      if (statusEl) {
+        statusEl.innerHTML = data.imported_clip_count !== null && data.imported_clip_count !== undefined
+          ? `<div class="preview-row mono">${tf("datamover_clip_count", { count: data.imported_clip_count })}</div>`
+          : `<p style="color:var(--text-faint); font-size:12px;">${t("datamover_no_count")}</p>`;
+      }
+      await loadData();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+      if (statusEl) statusEl.innerHTML = `<p style="color:var(--text-faint); font-size:12px;">${t("datamover_none_yet")}</p>`;
+    }
   }
 
   async function uploadAttachment(projectId, file) {

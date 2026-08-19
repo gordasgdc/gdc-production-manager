@@ -70,6 +70,16 @@ def _migrate_schema():
         db.session.execute(text("ALTER TABLE clients ADD COLUMN role VARCHAR(100)"))
         db.session.commit()
 
+    # v1.4.0: Project gained imported_clip_count/imported_structure, filled
+    # in by importing a DataMover export.
+    existing_project_cols = {row[1] for row in db.session.execute(text("PRAGMA table_info(projects)"))}
+    if "imported_clip_count" not in existing_project_cols:
+        db.session.execute(text("ALTER TABLE projects ADD COLUMN imported_clip_count INTEGER"))
+        db.session.commit()
+    if "imported_structure" not in existing_project_cols:
+        db.session.execute(text("ALTER TABLE projects ADD COLUMN imported_structure JSON"))
+        db.session.commit()
+
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)

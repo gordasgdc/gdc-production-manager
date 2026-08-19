@@ -311,6 +311,14 @@ class Project(db.Model):
     path_edit = db.Column(db.String(500), nullable=True)
     path_export = db.Column(db.String(500), nullable=True)
 
+    # Filled in by importing a DataMover export (see
+    # backend/datamover_import.py) - imported_structure is whatever
+    # shape the parser hands back (folder tree, per-card breakdown,
+    # etc.), kept as-is rather than forced into a fixed schema, since
+    # the exact DataMover file format is still being confirmed.
+    imported_clip_count = db.Column(db.Integer, nullable=True)
+    imported_structure = db.Column(db.JSON, nullable=True)
+
     budget_total = db.Column(db.Float, nullable=True, default=0)
     amount_paid = db.Column(db.Float, nullable=True, default=0)
     payment_status = db.Column(db.String(20), nullable=False, default="unpaid")
@@ -350,6 +358,8 @@ class Project(db.Model):
             "path_raw": self.path_raw,
             "path_edit": self.path_edit,
             "path_export": self.path_export,
+            "imported_clip_count": self.imported_clip_count,
+            "imported_structure": self.imported_structure,
             "budget_total": self.budget_total,
             "amount_paid": self.amount_paid,
             "payment_status": self.payment_status,
