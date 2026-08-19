@@ -12,7 +12,7 @@ from flask import Blueprint, request, jsonify, send_from_directory, Response
 from werkzeug.utils import secure_filename
 
 from models import (
-    db, Client, Company, Project, WorkflowTemplate, Attachment, Course, DigitalProduct,
+    db, User, Client, Company, Project, WorkflowTemplate, Attachment, Course, DigitalProduct,
     ChecklistTemplate, Checklist, Reminder, Equipment, EquipmentCheckout,
     PROJECT_STATUSES, PROJECT_TYPES, PAYMENT_STATUSES, COURSE_STATUSES, PRODUCT_TYPES,
     CURRENCIES, CHECKLIST_TYPES, REMINDER_TYPES, EQUIPMENT_STATUSES,
@@ -1616,14 +1616,10 @@ def _ics_event(uid, summary, description, start_dt, end_dt, all_day=False):
     return lines
 
 
-@api_bp.route("/api/reminders/export-ics", methods=["GET"])
-@login_required
-def export_ics():
-    """Exports reminders, upcoming courses, and project delivery dates as a
-    single .ics file the person can import into Apple Calendar, Outlook, etc.
-    Generated on demand — nothing is pushed automatically."""
-    user = current_user()
-
+def _build_ics(user) -> str:
+    """Shared by the manual one-time download and the token-based
+    subscribe feed below - same content either way, reminders/courses/
+    deliveries, computed fresh on every call (nothing persisted)."""
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -1670,13 +1666,59 @@ def export_ics():
         )
 
     lines.append("END:VCALENDAR")
-    ics_content = "\r\n".join(lines) + "\r\n"
+    return "\r\n".join(lines) + "\r\n"
 
+
+@api_bp.route("/api/reminders/export-ics", methods=["GET"])
+@login_required
+def export_ics():
+    """Exports reminders, upcoming courses, and project delivery dates as a
+    single .ics file the person can import into Apple Calendar, Outlook, etc.
+    Generated on demand — nothing is pushed automatically."""
+    user = current_user()
     return Response(
-        ics_content,
+        _build_ics(user),
         mimetype="text/calendar",
         headers={"Content-Disposition": "attachment; filename=gdc-production-manager.ics"},
     )
+
+
+@api_bp.route("/api/calendar/subscribe-info", methods=["GET"])
+@login_required
+def calendar_subscribe_info():
+    """Returns the stable feed URL for 'subscribe by URL' in Google
+    Calendar/Apple Calendar - generates the token on first call."""
+    user = current_user()
+    if not user.calendar_token:
+        user.calendar_token = uuid.uuid4().hex
+        db.session.commit()
+    feed_path = f"/api/calendar/feed.ics?token={user.calendar_token}"
+    return jsonify({"feed_path": feed_path})
+
+
+@api_bp.route("/api/calendar/regenerate-token", methods=["POST"])
+@login_required
+def calendar_regenerate_token():
+    """Invalidates the old feed URL (e.g. if it leaked) and issues a new one."""
+    user = current_user()
+    user.calendar_token = uuid.uuid4().hex
+    db.session.commit()
+    return jsonify({"feed_path": f"/api/calendar/feed.ics?token={user.calendar_token}"})
+
+
+@api_bp.route("/api/calendar/feed.ics", methods=["GET"])
+def calendar_feed():
+    """The actual subscribe-by-URL endpoint - deliberately NOT
+    @login_required, since Google/Apple Calendar polls this on a
+    schedule with no session cookie. Auth is the unguessable token
+    itself, checked here directly instead."""
+    token = request.args.get("token")
+    if not token:
+        return jsonify({"error": "token_required"}), 400
+    user = User.query.filter_by(calendar_token=token).first()
+    if not user:
+        return jsonify({"error": "invalid_token"}), 404
+    return Response(_build_ics(user), mimetype="text/calendar")
 
 
 @api_bp.route("/api/reminders", methods=["POST"])

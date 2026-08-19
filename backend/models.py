@@ -83,6 +83,13 @@ class User(db.Model):
     sync_token = db.Column(db.String(120), nullable=True)
     last_synced_at = db.Column(db.DateTime, nullable=True)
 
+    # Stable, unguessable token for the ICS "subscribe by URL" calendar
+    # feed - Google/Apple Calendar polls this URL periodically with no
+    # session cookie, so it needs its own long-lived credential instead
+    # of the normal login. Generated lazily on first request, never
+    # exposed anywhere except the subscribe-info endpoint.
+    calendar_token = db.Column(db.String(64), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     companies = db.relationship(
