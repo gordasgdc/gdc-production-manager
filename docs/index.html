@@ -254,7 +254,7 @@
     <div class="plat-icon" style="background:var(--scope-dim); color:var(--scope);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.4L12.4 20.6a2 2 0 0 1-2.8 0l-7-7a2 2 0 0 1 0-2.8L10.8 2.6a2 2 0 0 1 1.4-.6H19a2 2 0 0 1 2 2v6.6a2 2 0 0 1-.4 1.4z"/><circle cx="15.5" cy="7.5" r="1.5"/></svg></div>
     <div class="plat-name" data-t="pricing_amount"></div>
     <p style="color:var(--text-muted); font-size:13px; margin:0;" data-t="pricing_detail"></p>
-    <a class="btn btn-primary" href="https://wa.me/34643109970?text=Salut!%20Vreau%20s%C4%83%20cump%C4%83r%20GDC%20Production%20Manager%20(25%E2%82%AC%20lifetime)." target="_blank" rel="noopener" data-t="pricing_cta"></a>
+    <a class="btn btn-primary" id="whatsapp-buy-btn" href="#" target="_blank" rel="noopener" data-t="pricing_cta"></a>
   </div>
 </section>
 
@@ -582,6 +582,17 @@ document.querySelectorAll(".lang-btn").forEach(btn => {
 });
 
 render();
+
+// Numarul de WhatsApp nu e scris in clar in HTML — reconstruit din
+// bucati la incarcarea paginii, ca sa nu fie usor de extras de
+// crawlere automate care aduna numere pentru spam.
+(function () {
+  const waParts = ['34', '643', '109', '970'];
+  const waNumber = waParts.join('');
+  const waText = encodeURIComponent('Salut! Vreau să cumpăr GDC Production Manager (25€ lifetime).');
+  const waBtn = document.getElementById('whatsapp-buy-btn');
+  if (waBtn) waBtn.href = `https://wa.me/${waNumber}?text=${waText}`;
+})();
 </script>
 </body>
 </html>
