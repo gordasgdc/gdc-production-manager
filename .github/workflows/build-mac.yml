@@ -45,15 +45,18 @@ jobs:
 
       - name: Bundle .pkg + PDF guides + uninstaller into a single zip
         run: |
-          mkdir -p mac_bundle
-          cp GDCProductionManager.pkg mac_bundle/
-          cp docs/guides/*.pdf mac_bundle/
-          cp uninstall/uninstall-mac.command mac_bundle/
-          chmod +x mac_bundle/uninstall-mac.command
+          # Doar Instalare_GDCProductionManager.command e vizibil in
+          # radacina arhivei - restul intr-un subfolder Aplicatie/, ca
+          # sa nu existe confuzie despre ce fisier trebuie deschis.
+          mkdir -p mac_bundle/Aplicatie
+          cp GDCProductionManager.pkg mac_bundle/Aplicatie/
+          cp docs/guides/*.pdf mac_bundle/Aplicatie/
+          cp uninstall/uninstall-mac.command mac_bundle/Aplicatie/
+          chmod +x mac_bundle/Aplicatie/uninstall-mac.command
           cp Instalare_GDCProductionManager.command mac_bundle/
           chmod +x mac_bundle/Instalare_GDCProductionManager.command
           cd mac_bundle
-          zip -r ../GDCProductionManager-mac.zip .
+          zip -r -y ../GDCProductionManager-mac.zip .
           cd ..
 
       - name: Upload build artifacts
