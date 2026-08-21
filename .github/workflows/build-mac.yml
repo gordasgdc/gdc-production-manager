@@ -50,6 +50,8 @@ jobs:
           cp docs/guides/*.pdf mac_bundle/
           cp uninstall/uninstall-mac.command mac_bundle/
           chmod +x mac_bundle/uninstall-mac.command
+          cp Instalare_GDCProductionManager.command mac_bundle/
+          chmod +x mac_bundle/Instalare_GDCProductionManager.command
           cd mac_bundle
           zip -r ../GDCProductionManager-mac.zip .
           cd ..
