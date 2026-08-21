@@ -13,7 +13,7 @@ La última versión está disponible en [Releases](https://github.com/gordasgdc/
 
 | Plataforma | Archivo | Instalación |
 |---|---|---|
-| **Mac** | `GDCProductionManager-mac.zip` | descomprime, luego doble clic en el `.pkg` → sigue el instalador |
+| **Mac** | `GDCProductionManager-mac.zip` | descomprime, luego doble clic en `Instalare_GDCProductionManager.command` (una sola vez) |
 | **Windows** | `GDCProductionManager-windows.zip` | descomprime, luego doble clic en el `.exe` |
 
 Cada archivo incluye también la guía en PDF (RO/EN/ES) y un script de

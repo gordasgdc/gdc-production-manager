@@ -13,7 +13,7 @@ Ultima versiune e disponibilă în [Releases](https://github.com/gordasgdc/gdc-p
 
 | Platformă | Fișier | Instalare |
 |---|---|---|
-| **Mac** | `GDCProductionManager-mac.zip` | dezarhivează, apoi dublu-click pe `.pkg` → urmează instalatorul |
+| **Mac** | `GDCProductionManager-mac.zip` | dezarhivează, apoi dublu-click pe `Instalare_GDCProductionManager.command` (o singură dată) |
 | **Windows** | `GDCProductionManager-windows.zip` | dezarhivează, apoi dublu-click pe `.exe` |
 
 Fiecare arhivă include și ghidul PDF (RO/EN/ES) și un script de dezinstalare
