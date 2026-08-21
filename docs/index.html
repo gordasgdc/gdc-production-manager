@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  if (location.hostname === "gordasgdc.github.io") {
+    location.replace("https://gordas.dev/gdc-production-manager/" + location.search + location.hash);
+  }
+</script>
 <title>GDC Production Manager</title>
 <meta name="description" content="Aplicație desktop pentru gestionarea proiectelor de producție video, cursuri 1-la-1 și produse digitale — totul local, fără cloud. 7 zile gratuit, apoi 25€ o singură dată.">
 <link rel="icon" href="../icon/icon.svg" type="image/svg+xml">
