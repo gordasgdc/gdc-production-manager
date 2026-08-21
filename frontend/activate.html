@@ -61,7 +61,8 @@
     const msg = encodeURIComponent(
       `Salut! Vreau să activez GDC Production Manager (25€ lifetime). ID calculator: ${licenseStatus.machine_id}`
     );
-    document.getElementById("whatsapp-btn").href = `https://wa.me/34643109970?text=${msg}`;
+    const waNumber = ['34', '643', '109', '970'].join('');
+    document.getElementById("whatsapp-btn").href = `https://wa.me/${waNumber}?text=${msg}`;
   }
 
   function showActivateError(msg) {
