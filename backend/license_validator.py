@@ -21,4 +21,11 @@ PRODUCT_ID = "gdc-production-manager"
 
 def check(serial):
     current_machine_id = machine_id.get_machine_id_display()
-    return license_core.validate_serial_compact(PUBLIC_KEY_B64, serial, PRODUCT_ID, machine_id_b32=current_machine_id)
+    # machine_id_available: vezi kill-switch diferentiat din machine_id.py /
+    # license_manager.py — o citire esuata de hardware NU trebuie tratata ca
+    # "alta masina".
+    return license_core.validate_serial_compact(
+        PUBLIC_KEY_B64, serial, PRODUCT_ID,
+        machine_id_b32=current_machine_id,
+        machine_id_available=machine_id.is_available(),
+    )

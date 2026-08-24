@@ -113,6 +113,16 @@ class ValidationResult:
     payload: object = None
     error: str = None
     expired: bool = False
+    # Kill-switch diferentiat (decizie 2026-08-24) — reason distinge DE CE a
+    # esuat, ca license_manager.py sa aleaga reactia corecta:
+    #   "bad_signature"    -> tamper evident (cod falsificat/corupt/format
+    #                         invalid): blocare dura, sterge licenta locala.
+    #   "wrong_machine"    -> cod legat de alta masina: mod demo, NU sterge
+    #                         licenta locala (poate fi hardware schimbat legitim).
+    #   "hwid_unavailable" -> nu s-a putut citi hardware-ul acum (vezi
+    #                         machine_id.py): grace period, fara blocare.
+    #   "wrong_product" / "expired" / None (valid) -> neschimbate.
+    reason: str = None
 
 
 def generate_serial_compact(private_key_b64, product_id, expires_at=0, machine_id_b32=None):
@@ -155,10 +165,15 @@ def _base32_decode_str(s):
     return base64.b32decode(cleaned + padding)
 
 
-def validate_serial_compact(public_key_b64, serial, product_id, machine_id_b32=None):
+def validate_serial_compact(public_key_b64, serial, product_id, machine_id_b32=None, machine_id_available=True):
     """Verifica un cod generat cu generate_serial_compact(). Daca
     machine_id_b32 e dat, verifica si potrivirea cu masina — util pentru
-    testare din Python a comportamentului identic cu C++."""
+    testare din Python a comportamentului identic cu C++.
+
+    machine_id_available: False cand apelantul stie ca n-a putut citi
+    hardware-ul acum (vezi machine_id.py) — in acest caz o nepotrivire de
+    masina NU se trateaza ca "wrong_machine" (fals-pozitiv posibil), ci ca
+    "hwid_unavailable", pentru grace period (vezi license_manager.py)."""
     import struct
     try:
         public_bytes = base64.b64decode(public_key_b64)
@@ -166,7 +181,8 @@ def validate_serial_compact(public_key_b64, serial, product_id, machine_id_b32=N
 
         packed = _parse_serial(serial)
         if len(packed) != 22 + 64:
-            return ValidationResult(valid=False, error="Format de cod serial invalid (lungime gresita).")
+            return ValidationResult(valid=False, reason="bad_signature",
+                                     error="Format de cod serial invalid (lungime gresita).")
 
         payload_bytes = packed[:22]
         signature = packed[22:]
@@ -176,23 +192,29 @@ def validate_serial_compact(public_key_b64, serial, product_id, machine_id_b32=N
         stored_hash = payload_bytes[:4]
         expected_hash = hashlib.sha512(product_id.encode("utf-8")).digest()[:4]
         if stored_hash != expected_hash:
-            return ValidationResult(valid=False, error="Acest cod e pentru alt produs.")
+            return ValidationResult(valid=False, reason="wrong_product", error="Acest cod e pentru alt produs.")
 
         (expires_at,) = struct.unpack(">Q", payload_bytes[4:12])
 
         stored_machine_hash = payload_bytes[16:22]
         if stored_machine_hash != b"\x00" * 6:
+            if not machine_id_available:
+                return ValidationResult(valid=False, reason="hwid_unavailable",
+                                         error="Nu am putut citi identificatorul hardware acum.")
             current_machine_hash = _base32_decode_str(machine_id_b32) if machine_id_b32 else None
             if current_machine_hash != stored_machine_hash:
-                return ValidationResult(valid=False, error="Acest cod e activat pentru alt calculator.")
+                return ValidationResult(valid=False, reason="wrong_machine",
+                                         error="Acest cod e activat pentru alt calculator.")
 
     except InvalidSignature:
-        return ValidationResult(valid=False, error="Cod serial invalid — semnatura nu se potriveste.")
+        return ValidationResult(valid=False, reason="bad_signature",
+                                 error="Cod serial invalid — semnatura nu se potriveste.")
     except Exception as e:
-        return ValidationResult(valid=False, error=f"Cod serial invalid sau corupt ({e}).")
+        return ValidationResult(valid=False, reason="bad_signature",
+                                 error=f"Cod serial invalid sau corupt ({e}).")
 
     if expires_at and expires_at < int(time.time()):
-        return ValidationResult(valid=False, expired=True, error="Codul serial a expirat.")
+        return ValidationResult(valid=False, expired=True, reason="expired", error="Codul serial a expirat.")
 
     return ValidationResult(valid=True, payload=LicensePayload(product_id=product_id, expires_at=expires_at))
 
