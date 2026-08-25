@@ -2,6 +2,14 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## v1.2.4 (2026-08-26)
+
+### Added
+- Pop-up modal (nu doar bannerul discret existent) la detectarea automată
+  a unei versiuni noi la lansare — cerință explicită, Directivă Permanentă
+  Supremă ("verificator + notificare vizibilă"). Dismissal per-versiune,
+  cuplat cu bannerul (închiderea unuia ascunde și pe celălalt).
+
 ## v1.2.3 (2026-08-26)
 
 ### Fixed (audit secvențial — release-ul v1.2.2 nu conținea fix-ul din cod)
