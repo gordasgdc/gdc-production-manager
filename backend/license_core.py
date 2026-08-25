@@ -32,6 +32,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import sys
 import time
 from dataclasses import dataclass
 
@@ -121,15 +122,40 @@ class ValidationResult:
     #                         licenta locala (poate fi hardware schimbat legitim).
     #   "hwid_unavailable" -> nu s-a putut citi hardware-ul acum (vezi
     #                         machine_id.py): grace period, fara blocare.
+    #   "wrong_platform"   -> codul e valid dar emis pentru alta platforma
+    #                         (vezi PLATFORM_* mai jos) — mod demo.
     #   "wrong_product" / "expired" / None (valid) -> neschimbate.
     reason: str = None
+    platform: int = 0
 
 
-def generate_serial_compact(private_key_b64, product_id, expires_at=0, machine_id_b32=None):
+# GDC-LICENSE-PLATFORM (Etapa 2, 2026-08-25): al 23-lea octet, ADAUGAT la
+# finalul payload-ului v1 (22 octeti) — niciodata repurposand nonce-ul
+# existent, ca orice cod v1 deja emis sa ramana byte-cu-byte compatibil.
+PLATFORM_ANY = 0
+PLATFORM_MAC_ONLY = 1
+PLATFORM_WINDOWS_ONLY = 2
+PLATFORM_CROSS_PLATFORM = 3
+
+
+def _current_platform():
+    if sys.platform == "darwin":
+        return PLATFORM_MAC_ONLY
+    if sys.platform.startswith("win"):
+        return PLATFORM_WINDOWS_ONLY
+    return PLATFORM_ANY  # Linux: nicio restrictie de platforma deocamdata
+
+
+def _platform_allows(stored, current):
+    return stored in (PLATFORM_ANY, PLATFORM_CROSS_PLATFORM) or stored == current
+
+
+def generate_serial_compact(private_key_b64, product_id, expires_at=0, machine_id_b32=None, platform=PLATFORM_ANY):
     """Genereaza un cod serial folosind un format de payload FIX, binar
     (4 octeti hash produs + 8 octeti timestamp expirare + 4 octeti
     identificator aleator unic + 6 octeti hash masina = 22 octeti),
-    fara JSON.
+    fara JSON. Daca platform != PLATFORM_ANY, se adauga un al 23-lea
+    octet (vezi PLATFORM_* mai sus) — payload-ul devine v2, 23 octeti.
 
     machine_id_b32: string-ul Base32 pe care clientul il vede si il
     trimite (afisat de get_machine_id_display() din pluginul C++). Daca
@@ -152,6 +178,8 @@ def generate_serial_compact(private_key_b64, product_id, expires_at=0, machine_i
         machine_hash = b"\x00" * 6
 
     payload_bytes = product_hash + struct.pack(">Q", expires_at) + nonce + machine_hash
+    if platform != PLATFORM_ANY:
+        payload_bytes += bytes([platform])
     signature = private_key.sign(payload_bytes)
     packed = payload_bytes + signature
     return _format_serial(packed)
@@ -180,12 +208,19 @@ def validate_serial_compact(public_key_b64, serial, product_id, machine_id_b32=N
         public_key = ed25519.Ed25519PublicKey.from_public_bytes(public_bytes)
 
         packed = _parse_serial(serial)
-        if len(packed) != 22 + 64:
+        # GDC-LICENSE-PLATFORM: acceptam ambele lungimi — 86 (22+64, v1,
+        # deja emise) si 87 (23+64, v2, cu byte de platforma). Un cod v1
+        # decodeaza mereu platforma ca PLATFORM_ANY, comportament neschimbat.
+        if len(packed) == 22 + 64:
+            effective_size = 22
+        elif len(packed) == 23 + 64:
+            effective_size = 23
+        else:
             return ValidationResult(valid=False, reason="bad_signature",
                                      error="Format de cod serial invalid (lungime gresita).")
 
-        payload_bytes = packed[:22]
-        signature = packed[22:]
+        payload_bytes = packed[:effective_size]
+        signature = packed[effective_size:]
 
         public_key.verify(signature, payload_bytes)
 
@@ -195,6 +230,11 @@ def validate_serial_compact(public_key_b64, serial, product_id, machine_id_b32=N
             return ValidationResult(valid=False, reason="wrong_product", error="Acest cod e pentru alt produs.")
 
         (expires_at,) = struct.unpack(">Q", payload_bytes[4:12])
+
+        stored_platform = payload_bytes[22] if effective_size == 23 and payload_bytes[22] <= 3 else PLATFORM_ANY
+        if not _platform_allows(stored_platform, _current_platform()):
+            return ValidationResult(valid=False, reason="wrong_platform", platform=stored_platform,
+                                     error="Acest cod e valabil pentru altă platformă.")
 
         stored_machine_hash = payload_bytes[16:22]
         if stored_machine_hash != b"\x00" * 6:
@@ -216,7 +256,7 @@ def validate_serial_compact(public_key_b64, serial, product_id, machine_id_b32=N
     if expires_at and expires_at < int(time.time()):
         return ValidationResult(valid=False, expired=True, reason="expired", error="Codul serial a expirat.")
 
-    return ValidationResult(valid=True, payload=LicensePayload(product_id=product_id, expires_at=expires_at))
+    return ValidationResult(valid=True, payload=LicensePayload(product_id=product_id, expires_at=expires_at), platform=stored_platform)
 
 
 def validate_serial(public_key_b64, serial, expected_product_id=None):
