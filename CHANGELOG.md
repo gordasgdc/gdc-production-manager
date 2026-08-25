@@ -2,6 +2,17 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## v1.2.3 (2026-08-26)
+
+### Fixed (audit secvențial — release-ul v1.2.2 nu conținea fix-ul din cod)
+- Release-ul live `v1.2.2` fusese tăiat înainte de commit-ul care elimina
+  `Instalare_GDCProductionManager.command` — verificat direct (`unzip -l`
+  pe arhiva descărcată), nu presupus. `v1.2.3` conține fix-ul real.
+- Cele 3 ghiduri PDF separate (RO/EN/ES) combinate într-un singur
+  `Instructiuni_Utilizare.pdf` (27 pagini) — arhiva Mac respectă acum
+  strict "3 fișiere la rădăcină" (pkg + uninstaller + 1 PDF).
+- Versiune sincronizată la `1.2.3` (`backend/config.py` + `docs/update.json`).
+
 ## [Unreleased]
 
 ### Fixed (2026-08-25, audit "Directivă Permanentă Supremă")

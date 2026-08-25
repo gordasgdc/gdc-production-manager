@@ -57,3 +57,25 @@ Verificat cu atenție înainte de a raporta — acest repo era deja aproape
 - **Punctul 4 (site sync)**: `docs/update.json` era deja sincronizat
   (`1.2.2` = versiunea reală). Doar textul de instalare din `docs/index.html`
   (RO/EN/ES) trimitea la launcherul eliminat — corectat.
+
+## Audit 2026-08-26 — fix real găsit: codul era reparat, release-ul nu
+Codul din `144ba60` (eliminare hack Gatekeeper) era corect, dar
+**release-ul live `v1.2.2` fusese tăiat ÎNAINTE de acel commit** — exact
+pitfall-ul deja documentat la `GDCPluginManager` (v1.2.21). Verificat
+direct (`unzip -l` pe zip-ul descărcat de pe `releases/latest`): arhiva
+LIVE conținea încă `Instalare_GDCProductionManager.command` +
+subfolderul `Aplicatie/`. Fix: `v1.2.3` tăiat din commit-ul curent.
+- **PDF-uri unificate**: existau 3 fișiere separate în `docs/guides/`
+  (`_Ghid_RO.pdf`, `_Guide_EN.pdf`, `_Guia_ES.pdf`, 9 pagini fiecare) —
+  combinate cu `pypdf` într-un singur `Instructiuni_Utilizare.pdf`
+  (27 pagini, RO→EN→ES), ca arhiva Mac să respecte strict "3 fișiere la
+  rădăcină" (pkg + uninstaller + 1 PDF), la fel ca `GDCVault`. Cele 3
+  fișiere sursă șterse din `docs/guides/` — `.github/workflows/build-mac.yml`
+  le copia oricum prin wildcard (`docs/guides/*.pdf`), deci nu a fost
+  nevoie de nicio schimbare de CI.
+- **Release-uri GitHub**: verificat `v1.2.2` — deja avea EXACT 2 assets
+  (`GDCProductionManager-mac.zip`, `GDCProductionManager-windows.zip`),
+  fără fișiere confuze suplimentare. Nicio curățare de assets necesară.
+- Versiune sincronizată la `1.2.3` în `backend/config.py` (`APP_VERSION`)
+  și `docs/update.json` (ambele surse de adevăr pentru punctele 1 și 2
+  din Directiva Supremă).
