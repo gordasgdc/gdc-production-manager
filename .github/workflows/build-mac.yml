@@ -60,11 +60,17 @@ jobs:
           if [ -n "$APPLE_SIGN_IDENTITY_INSTALLER" ]; then
             SIGN_ARGS=(--sign "$APPLE_SIGN_IDENTITY_INSTALLER")
           fi
+          # --scripts: preinstall CURATA doar o instalare veche ramasa
+          # (pkill + rm -rf pe copia veche, inclusiv calea gresita
+          # /Applications/Applications/ din bug-ul <= v1.1.5). NU contine
+          # niciun hack de Gatekeeper/quarantine - pachetul e stapled mai
+          # jos, deci Gatekeeper il accepta nativ (vezi CLAUDE.md, 2026-08-25).
           pkgbuild \
             --root pkg_root \
             --identifier com.gordasgdc.productionmanager \
             --version "${VERSION:-1.0.0}" \
             --install-location / \
+            --scripts installer/scripts \
             "${SIGN_ARGS[@]}" \
             GDCProductionManager.pkg
 
@@ -81,16 +87,15 @@ jobs:
 
       - name: Bundle .pkg + PDF guides + uninstaller into a single zip
         run: |
-          # Doar Instalare_GDCProductionManager.command e vizibil in
-          # radacina arhivei - restul intr-un subfolder Aplicatie/, ca
-          # sa nu existe confuzie despre ce fisier trebuie deschis.
-          mkdir -p mac_bundle/Aplicatie
-          cp GDCProductionManager.pkg mac_bundle/Aplicatie/
-          cp docs/guides/*.pdf mac_bundle/Aplicatie/
-          cp uninstall/uninstall-mac.command mac_bundle/Aplicatie/
-          chmod +x mac_bundle/Aplicatie/uninstall-mac.command
-          cp Instalare_GDCProductionManager.command mac_bundle/
-          chmod +x mac_bundle/Instalare_GDCProductionManager.command
+          # Pachetul e semnat + notarizat + stapled (pasii de mai sus),
+          # deci Gatekeeper il accepta nativ - NU mai exista niciun
+          # launcher/script de bypass (Instalare_GDCProductionManager.command,
+          # eliminat 2026-08-25). Totul la radacina arhivei, fara subfoldere.
+          mkdir -p mac_bundle
+          cp GDCProductionManager.pkg mac_bundle/
+          cp docs/guides/*.pdf mac_bundle/ 2>/dev/null || true
+          cp uninstall/uninstall-mac.command mac_bundle/Dezinstalare_GDCProductionManager.command
+          chmod +x mac_bundle/Dezinstalare_GDCProductionManager.command
           cd mac_bundle
           zip -r -y ../GDCProductionManager-mac.zip .
           cd ..

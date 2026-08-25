@@ -4,6 +4,13 @@ All notable changes to GDC Production Manager are documented here.
 
 ## [Unreleased]
 
+### Fixed (2026-08-25, audit "Directivă Permanentă Supremă")
+- Eliminat `Instalare_GDCProductionManager.command` (hack Gatekeeper/quarantine inutil — pachetul e deja semnat+notarizat+stapled).
+- Curățare de versiune veche mutată corect într-un `installer/scripts/preinstall` (fără hack-uri de quarantine).
+- Uninstaller mutat la rădăcina arhivei Mac (era în subfolder), redenumit `Dezinstalare_GDCProductionManager.command`.
+- Site (RO/EN/ES) actualizat: dublu-click direct pe `.pkg`.
+- Restul checklist-ului (versiune în UI, update checker, sincronizare `update.json`) era deja conform — verificat, nu presupus.
+
 ### Added
 - Checklist progress bar (percentage + X/Y count) on every checklist
 - Per-checklist PDF export via a dedicated print-friendly page

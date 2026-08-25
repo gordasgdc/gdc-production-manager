@@ -1,0 +1,22 @@
+#!/bin/bash
+# Preinstall script rulat de pkgbuild --scripts INAINTE de a scrie noua
+# copie a aplicatiei.
+#
+# NU contine niciun hack de Gatekeeper/quarantine — pachetul e semnat cu
+# Developer ID Installer si notarizat/stapled (vezi build-mac.yml), deci
+# Gatekeeper il accepta nativ. Singurul scop aici: curatarea unei
+# instalari vechi ramase (inclusiv calea GRESITA /Applications/Applications/
+# din bug-ul de packaging <= v1.1.5, vezi uninstall-mac.command).
+
+set -e
+
+pkill -x "GDCProductionManager" 2>/dev/null || true
+sleep 1
+
+for p in "/Applications/GDCProductionManager.app" "/Applications/Applications/GDCProductionManager.app"; do
+    if [ -d "$p" ]; then
+        rm -rf "$p"
+    fi
+done
+
+exit 0
