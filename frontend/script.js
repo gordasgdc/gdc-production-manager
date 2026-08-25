@@ -349,9 +349,14 @@ const NAV_ITEMS = [
 
 /// Checks for a newer version automatically on every page load (not
 /// just the manual button in Settings) and shows a dismissible banner
-/// spanning the full app width. Dismissal is per-version (same
+/// spanning the full app width, PLUS a one-time modal pop-up (same
+/// dismissal state - closing either one hides both, so they never
+/// stack/duplicate). Dismissal is per-version (same
 /// gdcpm_dismissed_update_version convention as the sibling GDC Swift
-/// apps) - dismissing v1.5.0's banner doesn't hide a real v1.6.0 later.
+/// apps) - dismissing v1.5.0's notice doesn't hide a real v1.6.0 later.
+/// WARNING: this is NOT a self-updater - no helper process replaces the
+/// running app/exe. It only tells the user a newer version exists and
+/// links to the download; see update_routes.py for the same caveat.
 async function checkUpdateBanner() {
   const slot = document.getElementById("update-banner-slot");
   if (!slot) return;
@@ -364,6 +369,13 @@ async function checkUpdateBanner() {
     const platform = navigator.platform.toLowerCase().includes("mac") ? "mac" : "windows";
     const url = result.download_url[platform] || result.download_url.mac;
 
+    const dismissAll = () => {
+      localStorage.setItem("gdcpm_dismissed_update_version", result.latest_version);
+      slot.innerHTML = "";
+      const modal = document.getElementById("update-modal-overlay");
+      if (modal) modal.remove();
+    };
+
     slot.innerHTML = `
       <div class="update-banner">
         <span class="msg">${tf("update_available", { version: result.latest_version })}${result.changes ? " — " + escapeHtmlShared(result.changes) : ""}</span>
@@ -371,10 +383,25 @@ async function checkUpdateBanner() {
         <button class="btn btn-ghost btn-sm" id="dismiss-update-banner">${t("dismiss")}</button>
       </div>
     `;
-    document.getElementById("dismiss-update-banner").addEventListener("click", () => {
-      localStorage.setItem("gdcpm_dismissed_update_version", result.latest_version);
-      slot.innerHTML = "";
-    });
+    document.getElementById("dismiss-update-banner").addEventListener("click", dismissAll);
+
+    const overlay = document.createElement("div");
+    overlay.id = "update-modal-overlay";
+    overlay.className = "update-modal-overlay";
+    overlay.innerHTML = `
+      <div class="update-modal" role="dialog" aria-modal="true" aria-labelledby="update-modal-title">
+        <h2 id="update-modal-title">${t("update_modal_title")}</h2>
+        <p>${tf("update_modal_body", { version: result.latest_version })}${result.changes ? " — " + escapeHtmlShared(result.changes) : ""}</p>
+        <div class="update-modal-actions">
+          <button class="btn btn-ghost" id="update-modal-later">${t("update_modal_later")}</button>
+          <a class="btn btn-primary" id="update-modal-download" href="${url}" target="_blank">${t("update_download_btn")}</a>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById("update-modal-later").addEventListener("click", dismissAll);
+    document.getElementById("update-modal-download").addEventListener("click", dismissAll);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) dismissAll(); });
   } catch (e) {
     // silent - a failed update check should never block using the app
   }

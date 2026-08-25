@@ -124,6 +124,21 @@ button, input, select, textarea{ font-family: var(--font-body); }
 .update-banner .msg{ flex:1; min-width:200px; }
 .update-banner strong{ color: var(--scope); }
 
+.update-modal-overlay{
+  position:fixed; inset:0; z-index:999;
+  background:rgba(0,0,0,.55);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+}
+.update-modal{
+  background: var(--bg-elevated); border:1px solid var(--border-soft);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+  max-width:420px; width:100%; padding:28px;
+}
+.update-modal h2{ font-family:var(--font-display); font-size:18px; margin:0 0 10px; color:var(--text); }
+.update-modal p{ font-size:13.5px; line-height:1.6; color:var(--text-muted); margin:0 0 22px; }
+.update-modal-actions{ display:flex; justify-content:flex-end; gap:10px; }
+
 .brand{
   display:flex; align-items:center; gap:10px;
   padding: 6px 8px 20px 8px;

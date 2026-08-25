@@ -79,3 +79,15 @@ subfolderul `Aplicatie/`. Fix: `v1.2.3` tăiat din commit-ul curent.
 - Versiune sincronizată la `1.2.3` în `backend/config.py` (`APP_VERSION`)
   și `docs/update.json` (ambele surse de adevăr pentru punctele 1 și 2
   din Directiva Supremă).
+
+## Completare 2026-08-26 (v1.2.4) — pop-up modal, nu doar banner
+Verificat explicit: punctul 2 din Directiva Supremă (update checker) exista
+deja, dar notificarea era DOAR bannerul discret (`checkUpdateBanner`,
+`#update-banner-slot`) — nu un pop-up care întrerupe, cum s-a cerut. Fix:
+`checkUpdateBanner()` (`frontend/script.js`) construiește acum și un
+overlay modal (`#update-modal-overlay`, `.update-modal`), afișat o dată
+per versiune, cuplat cu aceeași stare de dismissal
+(`gdcpm_dismissed_update_version`) ca bannerul — închiderea oricăruia le
+ascunde pe amândouă. Chei de traducere noi în `translations.js`
+(`update_modal_title`/`update_modal_body`/`update_modal_later`, RO/EN/ES).
+Stil în `style.css` (`.update-modal-overlay`/`.update-modal`).
