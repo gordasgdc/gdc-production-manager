@@ -33,3 +33,27 @@ lipsește, spune-o explicit, nu declara release-ul "gata".
    site trebuie să pointeze mereu la `releases/latest/download/...`
    (HTTP 200 verificat, nu presupus) și să menționeze numărul ultimei
    versiuni.
+
+## Audit 2026-08-25 — găsit și reparat
+Verificat cu atenție înainte de a raporta — acest repo era deja aproape
+100% conform:
+- **Punctul 1 (versiune în UI)**: deja implementat (`settings.html`,
+  `#settings-app-version`, citește `/api/version`). Niciun fix necesar.
+- **Punctul 2 (update checker)**: deja implementat (`update_routes.py`,
+  citește `docs/update.json`). Niciun fix necesar.
+- **Punctul 3 (uninstaller în pachet)**: deja exista (`uninstall/uninstall-mac.command`
+  + `uninstall-windows.bat`), deja inclus în ambele arhive de release.
+  TCC reset (`tccutil`) NU e necesar aici — verificat, aplicația nu
+  folosește Camera/Screen Recording/Microphone (e Flask backend +
+  webview, portabil pe Windows). Singurul fix real: mutat vizibil la
+  rădăcina arhivei Mac (era în subfolder `Aplicatie/`) + redenumit
+  `Dezinstalare_GDCProductionManager.command` pentru consistență cu
+  restul ecosistemului.
+- **Punctul 3b (hack Gatekeeper)**: găsit și eliminat —
+  `Instalare_GDCProductionManager.command` (`xattr -dr com.apple.quarantine`)
+  era inutil, pachetul e deja stapled (`build-mac.yml`). Curățarea de
+  versiune veche mutată în `installer/scripts/preinstall`
+  (`pkgbuild --scripts`), fără hack-uri.
+- **Punctul 4 (site sync)**: `docs/update.json` era deja sincronizat
+  (`1.2.2` = versiunea reală). Doar textul de instalare din `docs/index.html`
+  (RO/EN/ES) trimitea la launcherul eliminat — corectat.
