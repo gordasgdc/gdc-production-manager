@@ -268,3 +268,15 @@ per versiune, cuplat cu aceeași stare de dismissal
 ascunde pe amândouă. Chei de traducere noi în `translations.js`
 (`update_modal_title`/`update_modal_body`/`update_modal_later`, RO/EN/ES).
 Stil în `style.css` (`.update-modal-overlay`/`.update-modal`).
+
+## Audit final 2026-08-26 — Inno Setup installer (lipsea complet)
+Găsit la auditul de conformitate global: aplicația Windows se distribuia
+ca `.exe` portabil brut într-un zip (rulat direct din orice folder,
+dezinstalat manual cu `uninstall-windows.bat`) — încălca Regula 5
+(instalare automată în Program Files, scurtături, dezinstalare nativă).
+Fix: `installer.iss` (nou, Inno Setup) — `DefaultDirName={autopf}\GDC\GDC
+Production Manager`, scurtături Start Menu + Desktop, `[UninstallDelete]`
+curăță și `%APPDATA%\GDCProductionManager`. `.github/workflows/build-windows.yml`
+actualizat să compileze installer-ul (ISCC, preinstalat pe
+`windows-latest`) și să publice `GDCProductionManagerSetup.exe` — nu mai
+zip-ul brut vechi.
