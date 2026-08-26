@@ -1,10 +1,10 @@
 {
-  "version": "1.2.4",
+  "version": "1.2.5",
   "release_date": "2026-08-26",
-  "changes": "Update checker: pop-up modal la lansare (nu doar banner discret) cand exista o versiune noua.",
+  "changes": "Windows: instalator real Inno Setup (Program Files, scurtaturi Start Menu + Desktop, dezinstalare nativa) in loc de arhiva exe+bat.",
   "download_url": {
     "mac": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-mac.zip",
-    "windows": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManager-windows.zip"
+    "windows": "https://github.com/gordasgdc/gdc-production-manager/releases/latest/download/GDCProductionManagerSetup.exe"
   },
   "mandatory": false,
   "min_version": "1.0.0"
