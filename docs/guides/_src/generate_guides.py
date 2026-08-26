@@ -213,7 +213,7 @@ RO = {
     ],
     "sec7_title": "Licență și activare",
     "license_p1": "GDC Production Manager are 7 zile de probă completă, fără nicio limitare — poți testa absolut tot. După aceea, aplicația necesită o activare pe viață: 25€, o singură dată, fără abonament, fără reînnoiri.",
-    "license_p2": "Activarea o faci din Setări → Licență (sau din ecranul de activare, dacă proba a expirat) — oricând vrei, nu doar la expirare. Acolo găsești ID-ul calculatorului tău și un buton de cumpărare pe WhatsApp: trimiți ID-ul, primești manual codul serial, îl introduci și gata. Codul e legat de acel calculator — nu funcționează pe altul.",
+    "license_p2": "Activarea o faci din Setări → Licență (sau din ecranul de activare, dacă proba a expirat) — oricând vrei, nu doar la expirare. Acolo găsești ID-ul calculatorului tău și un buton de donație pe WhatsApp: trimiți ID-ul, primești manual codul serial, îl introduci și gata. Codul e legat de acel calculator — nu funcționează pe altul.",
     "license_note": "Codul sursă rămâne deschis (licență MIT) pe GitHub — plătești activarea aplicației compilate, gata de folosit, nu codul în sine.",
 }
 
