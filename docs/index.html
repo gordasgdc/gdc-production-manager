@@ -17,7 +17,7 @@
   :root{
     --bg:#101218; --bg-elevated:#171A22; --panel:#1B1F29; --panel-2:#21252F;
     --border:#2A2F3B; --text:#ECEEF1; --text-muted:#9199A8; --text-faint:#626A79;
-    --tally:#E8483C; --tally-dim:#4A2622; --scope:#35D6BE; --scope-dim:#143A35;
+    --tally:#E8483C; --tally-dim:#4A2622; --scope:#E8963C; --scope-dim:#3A2A14;
     --amber:#E8A33D; --violet:#8B7CF6;
     --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', -apple-system, BlinkMacSystemFont, sans-serif; --font-mono:'JetBrains Mono', monospace;
   }
@@ -26,7 +26,7 @@
   body{
     margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body);
     background-image:
-      radial-gradient(circle at 10% -10%, rgba(53,214,190,0.08), transparent 40%),
+      radial-gradient(circle at 10% -10%, rgba(232,150,60,0.08), transparent 40%),
       radial-gradient(circle at 100% 0%, rgba(232,72,60,0.07), transparent 35%);
     background-attachment:fixed;
     line-height:1.6;
@@ -57,7 +57,7 @@
   .lang-btn.active{border-color:var(--scope); color:var(--scope);}
 
   /* ---------------------------------------------------------------- hero */
-  .hero{padding:90px 0 40px; text-align:center;}
+  .hero{padding:64px 0 40px; text-align:center;}
   .eyebrow{
     display:inline-flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:12px;
     color:var(--scope); border:1px solid var(--scope-dim); background:var(--scope-dim);
@@ -318,11 +318,11 @@ const T = {
     cta_download_win: "Descarcă pentru Windows",
     cta_source: "Cod sursă (GitHub)",
     pricing_line: "7 zile gratuit, apoi 25€ o singură dată — fără abonament.",
-    pricing_title: "Preț",
+    pricing_title: "Donație",
     pricing_sub: "Simplu: probă gratuită, apoi plătești o singură dată.",
     pricing_amount: "25€ · lifetime",
     pricing_detail: "7 zile de probă completă, apoi activare pe viață — fără abonament, fără reînnoiri.",
-    pricing_cta: "Cumpără pe WhatsApp",
+    pricing_cta: "Donează pe WhatsApp",
     about_title: "Despre aplicație",
     about_text: "GDC Production Manager este o aplicație desktop, standalone, pentru gestionarea activității de editor video și colorist. Urmărești proiecte de producție video prin toate etapele lor, ții evidența clienților, programezi cursuri 1-la-1 și îți administrezi produsele digitale (DCTL-uri, PowerGrade, LUT-uri). Fiecare utilizator o instalează pe propriul laptop; datele rămân locale.",
     features_title: "Caracteristici",
@@ -390,11 +390,11 @@ const T = {
     cta_download_win: "Download for Windows",
     cta_source: "Source code (GitHub)",
     pricing_line: "7 days free, then 25€ once — no subscription.",
-    pricing_title: "Pricing",
+    pricing_title: "Donation",
     pricing_sub: "Simple: a free trial, then a single one-time payment.",
     pricing_amount: "25€ · lifetime",
     pricing_detail: "7 days full trial, then a lifetime activation — no subscription, no renewals.",
-    pricing_cta: "Buy on WhatsApp",
+    pricing_cta: "Donate on WhatsApp",
     about_title: "About the app",
     about_text: "GDC Production Manager is a standalone desktop app for running a video editing and coloring business. Track video production projects through every stage, keep client records, schedule 1-on-1 courses, and manage your digital products (DCTLs, PowerGrades, LUTs). Each user installs it on their own laptop; data stays local.",
     features_title: "Features",
@@ -462,11 +462,11 @@ const T = {
     cta_download_win: "Descargar para Windows",
     cta_source: "Código fuente (GitHub)",
     pricing_line: "7 días gratis, luego 25€ una sola vez — sin suscripción.",
-    pricing_title: "Precio",
+    pricing_title: "Donación",
     pricing_sub: "Simple: una prueba gratuita, luego un único pago.",
     pricing_amount: "25€ · de por vida",
     pricing_detail: "7 días de prueba completa, luego una activación de por vida — sin suscripción, sin renovaciones.",
-    pricing_cta: "Comprar por WhatsApp",
+    pricing_cta: "Donar por WhatsApp",
     about_title: "Sobre la aplicación",
     about_text: "GDC Production Manager es una app de escritorio independiente para gestionar un negocio de edición y etalonaje de vídeo. Sigue tus proyectos de producción por todas sus etapas, mantén tus clientes, programa cursos 1 a 1 y administra tus productos digitales (DCTLs, PowerGrades, LUTs). Cada usuario la instala en su propio portátil; los datos se quedan en local.",
     features_title: "Características",
@@ -589,7 +589,7 @@ render();
 (function () {
   const waParts = ['34', '643', '109', '970'];
   const waNumber = waParts.join('');
-  const waText = encodeURIComponent('Salut! Vreau să cumpăr GDC Production Manager (25€ lifetime).');
+  const waText = encodeURIComponent('Salut! Vreau să donez pentru GDC Production Manager (25€ lifetime).');
   const waBtn = document.getElementById('whatsapp-buy-btn');
   if (waBtn) waBtn.href = `https://wa.me/${waNumber}?text=${waText}`;
 })();
