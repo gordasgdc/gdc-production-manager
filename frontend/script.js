@@ -354,9 +354,10 @@ const NAV_ITEMS = [
 /// stack/duplicate). Dismissal is per-version (same
 /// gdcpm_dismissed_update_version convention as the sibling GDC Swift
 /// apps) - dismissing v1.5.0's notice doesn't hide a real v1.6.0 later.
-/// WARNING: this is NOT a self-updater - no helper process replaces the
-/// running app/exe. It only tells the user a newer version exists and
-/// links to the download; see update_routes.py for the same caveat.
+/// BUG FIX 2026-08-27 (CLAUDE.md Partea 1, Regula 20): butonul deschidea
+/// download_url intr-un tab nou de browser (catre GitHub) - inlocuit cu
+/// un apel la /api/update/install, care descarca+instaleaza direct din
+/// server, fara niciun tab nou. Vezi self_updater.py/update_routes.py.
 async function checkUpdateBanner() {
   const slot = document.getElementById("update-banner-slot");
   if (!slot) return;
@@ -379,10 +380,11 @@ async function checkUpdateBanner() {
     slot.innerHTML = `
       <div class="update-banner">
         <span class="msg">${tf("update_available", { version: result.latest_version })}${result.changes ? " — " + escapeHtmlShared(result.changes) : ""}</span>
-        <a class="btn btn-primary btn-sm" href="${url}" target="_blank">${t("update_download_btn")}</a>
+        <button class="btn btn-primary btn-sm" id="update-banner-install">${t("update_download_btn")}</button>
         <button class="btn btn-ghost btn-sm" id="dismiss-update-banner">${t("dismiss")}</button>
       </div>
     `;
+    document.getElementById("update-banner-install").addEventListener("click", () => startSelfUpdate(result));
     document.getElementById("dismiss-update-banner").addEventListener("click", dismissAll);
 
     const overlay = document.createElement("div");
@@ -394,13 +396,13 @@ async function checkUpdateBanner() {
         <p>${tf("update_modal_body", { version: result.latest_version })}${result.changes ? " — " + escapeHtmlShared(result.changes) : ""}</p>
         <div class="update-modal-actions">
           <button class="btn btn-ghost" id="update-modal-later">${t("update_modal_later")}</button>
-          <a class="btn btn-primary" id="update-modal-download" href="${url}" target="_blank">${t("update_download_btn")}</a>
+          <button class="btn btn-primary" id="update-modal-download">${t("update_download_btn")}</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
     document.getElementById("update-modal-later").addEventListener("click", dismissAll);
-    document.getElementById("update-modal-download").addEventListener("click", dismissAll);
+    document.getElementById("update-modal-download").addEventListener("click", () => { dismissAll(); startSelfUpdate(result); });
     overlay.addEventListener("click", (e) => { if (e.target === overlay) dismissAll(); });
   } catch (e) {
     // silent - a failed update check should never block using the app
@@ -411,6 +413,48 @@ function escapeHtmlShared(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
   return div.innerHTML;
+}
+
+/// Descarca+instaleaza direct din server (POST /api/update/install), apoi
+/// face polling pe /api/update/install-status pana la "done"/"failed" -
+/// NICIODATA un tab nou de browser catre GitHub. Vezi self_updater.py.
+async function startSelfUpdate(result) {
+  const overlay = document.createElement("div");
+  overlay.className = "update-modal-overlay";
+  overlay.innerHTML = `
+    <div class="update-modal" role="dialog" aria-modal="true">
+      <h2>${t("app_title") || "GDC Production Manager"} ${result.latest_version}</h2>
+      <p id="self-update-status">Se descarcă actualizarea…</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const statusEl = overlay.querySelector("#self-update-status");
+
+  try {
+    await API.post("/api/update/install", { version: result.latest_version, download_url: result.download_url });
+  } catch (e) {
+    statusEl.textContent = "Nu am putut porni actualizarea. Încearcă din nou.";
+    return;
+  }
+
+  const poll = setInterval(async () => {
+    try {
+      const status = await API.get("/api/update/install-status");
+      if (status.stage === "downloading") statusEl.textContent = "Se descarcă actualizarea…";
+      else if (status.stage === "installing") statusEl.textContent = "Se instalează…";
+      else if (status.stage === "done") {
+        statusEl.textContent = "Instalat! Aplicația repornește…";
+        clearInterval(poll);
+      } else if (status.stage === "failed") {
+        statusEl.textContent = `Actualizarea a eșuat: ${status.error || "eroare necunoscută"}`;
+        clearInterval(poll);
+      }
+    } catch (e) {
+      // Serverul s-a inchis deja (update instalat cu succes) - normal.
+      statusEl.textContent = "Instalat! Aplicația repornește…";
+      clearInterval(poll);
+    }
+  }, 1000);
 }
 
 function renderShell(activeHref, user) {

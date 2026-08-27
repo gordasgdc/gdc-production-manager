@@ -382,7 +382,26 @@ doar un link:
   versiunii noi** (pop-up, texte, dismissal) — doar acțiunea butonului
   principal se schimbă: NU mai deschide un link, cheamă Self-Updater-ul.
 
-**Status acest repo (2026-08-27): NEIMPLEMENTAT — OBLIGATORIU la următoarea actualizare, adaptat la stack-ul Python/Flask.** `backend/update_routes.py` doar verifică versiunea; `frontend/script.js`/`settings.html` fac `window.open(url, "_blank")` pe `download_url` — exact anti-pattern-ul interzis de această regulă. Necesită un modul Python (`core/updater.py`, precedent DataMover-ul VECHI Python înainte de portul Swift) care descarcă installer-ul cu `requests`/`urllib` și îl lansează cu `subprocess.Popen` (`open -a`/`installer -pkg` pe Mac, direct `.exe` pe Windows), apoi închide procesul Flask/desktop curent.
+**Status acest repo (2026-08-27): IMPLEMENTAT (cod complet, publicare prin
+CI existent, netestat manual încă de Cristi).** `backend/self_updater.py`
+(nou) — descarcă installer-ul (`.pkg` Mac / `.exe` Windows) cu `urllib`,
+îl instalează (Mac: script bash elevat cu `osascript ... with
+administrator privileges`, la fel ca `SelfUpdater.swift`; Windows:
+`subprocess.Popen` detașat), scrie progresul într-un fișier de status
+(`%TEMP%/gdc_production_manager_update_status.json`) — NU o fereastră
+nativă, UI-ul e servit în browser local, deci progresul se arată prin
+polling. Rute noi: `POST /api/update/install` (pornește update-ul
+async), `GET /api/update/install-status` (polling). `frontend/script.js`
++ `settings.html` — `window.open(url, "_blank")` ÎNLOCUIT complet cu
+`startSelfUpdate()` (apel API + modal de progres cu polling, NICIODATĂ
+tab nou de browser). `docs/update.json.download_url.mac` schimbat de la
+`.zip` (nu putea fi instalat direct) la `.pkg` direct — `.github/workflows/
+build-mac.yml` actualizat să publice și `GDCProductionManager.pkg` ca
+asset separat (înainte doar zip-ul, .pkg-ul exista doar în interiorul
+lui). Windows publica deja exe-ul brut, nicio schimbare necesară acolo.
+Versiune → `1.3.0`. **WARNING nemodificat**: pasul de instalare efectiv
+nu poate fi verificat automat — necesită confirmare manuală, o dată, de
+Cristi, pe fiecare platformă, după ce CI-ul publică `v1.3.0`.
 
 ## [PARTEA 2: SPECIFICAȚII TEHNICE PROIECT]
 
