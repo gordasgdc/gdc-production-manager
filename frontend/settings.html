@@ -191,11 +191,11 @@
     try {
       const result = await API.get("/api/update/check");
       if (result.update_available) {
-        const platform = navigator.platform.toLowerCase().includes("mac") ? "mac" : "windows";
-        const url = result.download_url[platform] || result.download_url.mac;
         line.innerHTML = `${tf("update_available", { version: result.latest_version })}${result.changes ? " — " + escapeHtml(result.changes) : ""}`;
         btn.textContent = t("update_download_btn");
-        btn.onclick = () => window.open(url, "_blank");
+        // BUG FIX 2026-08-27 (Regula 20): nu mai deschide un tab de
+        // browser catre GitHub - descarca+instaleaza direct din server.
+        btn.onclick = () => startSelfUpdate(result);
       } else {
         line.textContent = t("update_none");
         btn.textContent = t("check_updates_btn");

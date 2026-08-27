@@ -7,13 +7,15 @@ browserului local.
 """
 
 import json
+import platform
 import ssl
 import urllib.request
 from urllib.error import URLError
 
 import certifi
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
+import self_updater
 from config import APP_VERSION, APP_VERSION_URL
 
 update_bp = Blueprint("update", __name__)
@@ -51,3 +53,24 @@ def check_update():
         "changes": data.get("changes", ""),
         "download_url": data.get("download_url", {}),
     })
+
+
+# BUG FIX 2026-08-27 (CLAUDE.md Partea 1, Regula 20): frontend-ul facea
+# `window.open(download_url, "_blank")` - deschidea un tab de browser catre
+# GitHub, exact anti-pattern-ul interzis acum. Ruta de mai jos descarca si
+# instaleaza direct, din server, fara niciun tab nou. Vezi self_updater.py.
+@update_bp.route("/api/update/install", methods=["POST"])
+def install_update():
+    body = request.get_json(silent=True) or {}
+    platform_key = "mac" if platform.system() == "Darwin" else "windows"
+    download_url = body.get("download_url", {}).get(platform_key) if isinstance(body.get("download_url"), dict) else None
+    version = body.get("version", "latest")
+    if not download_url:
+        return jsonify({"error": "missing_download_url"}), 400
+    self_updater.start_update_async(download_url, version)
+    return jsonify({"started": True})
+
+
+@update_bp.route("/api/update/install-status", methods=["GET"])
+def install_status():
+    return jsonify(self_updater.read_status())
