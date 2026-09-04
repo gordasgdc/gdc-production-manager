@@ -173,16 +173,30 @@ function fmtDate(iso) {
 }
 
 function statusPillHtml(status) {
-  return `<span class="status-pill st-${status}"><span class="dot"></span>${t("status_" + status)}</span>`;
+  return `<span class="status-pill st-${status}"><span class="dot"></span>${stageLabel(status)}</span>`;
 }
 
 /// Payment-status badge (red/amber/green) - same .status-pill visual
 /// language as statusPillHtml, just a different color set (pay-*
 /// modifiers in style.css). `status` can be null (no projects yet, no
 /// badge to show) - callers should check before calling this.
-function payStatusPillHtml(status) {
+/// v2.0.0: `isOverdue` (only meaningful for a Project, which has a
+/// delivery_date) swaps the pill to a distinct "overdue" look, computed
+/// server-side (Project.to_dict()'s is_overdue) - never a 5th stored
+/// payment_status value, see models.py PAYMENT_STATUSES.
+function payStatusPillHtml(status, isOverdue) {
   if (!status) return "";
+  if (isOverdue) {
+    return `<span class="status-pill pay-overdue"><span class="dot"></span>${t("overdue_badge")}</span>`;
+  }
   return `<span class="status-pill pay-${status}"><span class="dot"></span>${t("pay_" + status)}</span>`;
+}
+
+/// v2.0.0: the persistent attention badge - shown wherever a flagged
+/// client/project appears (list rows, previews). Returns "" when not
+/// flagged, so callers can inline it unconditionally.
+function flagBadgeHtml(isFlagged) {
+  return isFlagged ? `<span class="flag-badge">${t("flag_badge")}</span>` : "";
 }
 
 /// Opens Google Maps at an address - no API key, just a plain search URL.
@@ -209,9 +223,27 @@ async function pickFolderInto(inputId) {
   }
 }
 
+/// v2.0.0: "Deschide folderul" - reveals the path currently in the given
+/// input in Finder (Mac) / Explorer (Windows), via /api/open-folder. A
+/// 404 (path moved/deleted since it was saved) shows a clear message
+/// instead of doing nothing silently.
+async function openFolderFrom(inputId) {
+  const path = (document.getElementById(inputId).value || "").trim();
+  if (!path) return;
+  try {
+    await API.post("/api/open-folder", { path });
+  } catch (e) {
+    if (e.status === 404) {
+      showToast(t("open_folder_missing"), "error");
+    } else {
+      showToast(errorMessage(e), "error");
+    }
+  }
+}
+
 function miniPipelineHtml(status) {
   const idx = STATUS_ORDER.indexOf(status);
-  return `<div class="mini-pipeline" title="${t("status_" + status)}">` +
+  return `<div class="mini-pipeline" title="${stageLabel(status)}">` +
     STATUS_ORDER.map((s, i) => {
       let cls = "dot";
       if (i < idx) cls += " done";
@@ -231,9 +263,54 @@ function pipelineHtml(byStatus) {
       }).join("")}
     </div>
     <div class="pipeline-labels">
-      ${STATUS_ORDER.map(s => `<span>${t("status_" + s)} (${byStatus[s] || 0})</span>`).join("")}
+      ${STATUS_ORDER.map(s => `<span>${stageLabel(s)} (${byStatus[s] || 0})</span>`).join("")}
     </div>
   `;
+}
+
+/// v2.0.0: the real interactive pipeline stepper - every stage is a
+/// clickable node (jumps directly there, forward or backward), not just
+/// a "next" arrow. Caller wires [data-jump-stage] after inserting this;
+/// `currentStatus` may be a deactivated/unknown key (falls back to "no
+/// stage reached yet" rendering, current index -1) rather than crashing.
+function stageStepperHtml(projectId, currentStatus) {
+  const curIdx = STATUS_ORDER.indexOf(currentStatus);
+  return `
+    <div class="stage-stepper">
+      ${STATUS_ORDER.map((s, i) => {
+        let cls = "stage-node";
+        if (i < curIdx) cls += " done";
+        else if (i === curIdx) cls += " current";
+        return `
+          ${i > 0 ? `<span class="stage-connector ${i <= curIdx ? "done" : ""}"></span>` : ""}
+          <button type="button" class="${cls}" data-jump-stage="${projectId}:${s}" title="${escapeHtmlShared(stageLabel(s))}">
+            <span class="stage-dot"></span>
+            <span class="stage-label">${escapeHtmlShared(stageLabel(s))}</span>
+          </button>
+        `;
+      }).join("")}
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" data-stage-history="${projectId}" style="margin-top:10px;">🕘 ${t("stage_history_btn")}</button>
+    <div id="stage-history-panel-${projectId}"></div>
+  `;
+}
+
+/// Renders the read-only audit trail fetched from
+/// GET /api/projects/:id/stage-history into the panel stageStepperHtml
+/// already left in the DOM for this project - toggles open/closed on
+/// repeated clicks rather than re-fetching every time.
+function stageHistoryListHtml(events) {
+  if (!events.length) {
+    return `<p class="stage-history-empty">${t("stage_history_empty")}</p>`;
+  }
+  return `<div class="stage-history-list">` +
+    events.map(e => `
+      <div class="stage-history-row">
+        <span class="stage-history-label">${escapeHtmlShared(stageLabel(e.stage_key))}</span>
+        <span class="stage-history-date mono">${fmtDate(e.entered_at ? e.entered_at.slice(0, 10) : null)}</span>
+        ${e.note_snapshot ? `<span class="stage-history-note">${escapeHtmlShared(e.note_snapshot)}</span>` : ""}
+      </div>
+    `).join("") + `</div>`;
 }
 
 function renderNotifItem(n) {
@@ -488,9 +565,15 @@ function renderShell(activeHref, user) {
         <div class="lang-switch">
           ${["ro", "en", "es"].map(l => `<button class="lang-btn ${CURRENT_LANG === l ? "active" : ""}" data-lang="${l}">${l.toUpperCase()}</button>`).join("")}
         </div>
-        <div class="user-chip">
-          <span>${(user && (user.display_name || user.username)) || ""}</span>
-          <button id="logout-btn">${t("logout")}</button>
+        <div class="user-chip user-chip-profile">
+          <div class="user-chip-row">
+            <span>${escapeHtmlShared((user && (user.display_name || user.username)) || t("profile_anonymous"))}</span>
+            <button id="logout-btn">${t("logout")}</button>
+          </div>
+          <div class="sidebar-hwid-row" id="sidebar-hwid-row" title="${t("machine_id_label")}">
+            <span class="mono" id="sidebar-hwid-value">…</span>
+            <button type="button" id="sidebar-copy-hwid" title="${t("copy_btn")}">⧉</button>
+          </div>
         </div>
         <button class="btn btn-ghost btn-sm btn-block" id="quit-btn">${t("quit")}</button>
       </div>
@@ -533,16 +616,30 @@ function renderShell(activeHref, user) {
 
 async function renderLicenseBadge() {
   const slot = document.getElementById("license-badge-slot");
-  if (!slot) return;
+  const hwidValue = document.getElementById("sidebar-hwid-value");
   try {
     const status = await API.get("/api/license/status");
-    if (status.licensed) return; // licentiat pe viata - nu mai aratam nimic
-    const warn = status.trial_days_remaining <= 2;
-    slot.innerHTML = `
-      <a href="settings.html#license" class="license-badge ${warn ? "warn" : ""}" style="text-decoration:none; margin-bottom:10px; justify-content:center;">
-        ⏰ ${tf("license_status_trial", { days: status.trial_days_remaining })}
-      </a>
-    `;
+
+    // v2.0.0 (Regula 12 - profil + HWID vizibil în sidebar, nu doar în
+    // Settings): populates regardless of license state, unlike the badge
+    // below which only shows during trial.
+    if (hwidValue) hwidValue.textContent = status.machine_id;
+
+    if (slot && !status.licensed) {
+      const warn = status.trial_days_remaining <= 2;
+      slot.innerHTML = `
+        <a href="settings.html#license" class="license-badge ${warn ? "warn" : ""}" style="text-decoration:none; margin-bottom:10px; justify-content:center;">
+          ⏰ ${tf("license_status_trial", { days: status.trial_days_remaining })}
+        </a>
+      `;
+    }
+
+    const copyBtn = document.getElementById("sidebar-copy-hwid");
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(status.machine_id).then(() => showToast(t("copied_toast")));
+      };
+    }
   } catch (e) {}
 }
 
@@ -557,6 +654,7 @@ async function requireAuth(onReady) {
     }
     setLang(data.user.language || CURRENT_LANG);
     applyTheme(data.user.theme || CURRENT_THEME);
+    await loadPipelineDefs();
     onReady(data.user);
   } catch (e) {
     window.location.href = "login.html";

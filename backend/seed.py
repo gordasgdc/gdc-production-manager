@@ -7,7 +7,23 @@ They're regular templates once created — the person can freely edit or
 delete them, `is_default` is only a label for "came with the app".
 """
 
-from models import db, ChecklistTemplate
+from models import db, ChecklistTemplate, ProjectTypeDef, ProjectStageDef, PROJECT_TYPES, PROJECT_STATUSES
+
+# RO labels matching translations.js verbatim (type_*/status_* keys) - the
+# frontend still prefers a live t("status_"+key) translation when one
+# exists, so EN/ES installs see the correct localized text unchanged; this
+# `label` is the fallback (and the only text used for anything the person
+# adds/renames later, which has no translation key at all).
+_TYPE_LABELS_RO = {
+    "film": "Film", "commercial": "Reclamă", "wedding": "Nuntă",
+    "documentary": "Documentar", "broadcast": "Broadcast",
+    "music_video": "Videoclip muzical", "corporate": "Corporate", "other": "Altul",
+}
+_STAGE_LABELS_RO = {
+    "planning": "Planificare", "filming": "Filmare", "editing": "Montaj",
+    "coloring": "Colorizare", "review": "Review", "final": "Final",
+    "delivered": "Predat",
+}
 
 DEFAULT_CHECKLIST_TEMPLATES = [
     {
@@ -97,4 +113,28 @@ def seed_default_checklist_templates(user) -> None:
                 is_default=True,
             )
         )
+    db.session.commit()
+
+
+def seed_default_pipeline_defs(user) -> None:
+    """v2.0.0: creates the starter ProjectTypeDef/ProjectStageDef rows for
+    a user who has none yet - a freshly registered account, or an
+    existing one upgrading from pre-2.0.0 (see app.py::_migrate_schema,
+    which calls this for every existing user once). Safe to call
+    multiple times - skips whichever of the two is already populated,
+    so it can't duplicate rows on a second migration pass."""
+    if not ProjectTypeDef.query.filter_by(user_id=user.id).first():
+        for i, key in enumerate(PROJECT_TYPES):
+            db.session.add(ProjectTypeDef(
+                user_id=user.id, key=key,
+                label=_TYPE_LABELS_RO.get(key, key.replace("_", " ").title()),
+                order=i,
+            ))
+    if not ProjectStageDef.query.filter_by(user_id=user.id).first():
+        for i, key in enumerate(PROJECT_STATUSES):
+            db.session.add(ProjectStageDef(
+                user_id=user.id, key=key,
+                label=_STAGE_LABELS_RO.get(key, key.replace("_", " ").title()),
+                order=i,
+            ))
     db.session.commit()

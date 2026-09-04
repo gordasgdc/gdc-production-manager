@@ -710,6 +710,38 @@ clase, cauze tehnice) unei audiențe publice necunoscute.
   `MediaFlow-Monitor` (v1.0.0/v1.0.1) — restul release-urilor mai vechi din
   ecosistem rămân de verificat incremental, nu toate dintr-o dată.
 
+**30. Zero cod "impur" sau nelalocul lui — orice implementare TREBUIE
+finalizată complet, nu doar compilată (2026-09-03).** Cerință explicită de
+la Cristi, după un incident real: un fix scris în cod dar nepropagat peste
+tot unde era nevoie (versiune, `update.json`, ambele platforme, ambele
+aplicații) a lăsat sistemul într-o stare pe jumătate — "să nu rămână nimic
+inpur și nelalocul lui, să se implementeze tot ce am actualizat și am
+creat, să nu mai avem probleme". Regulă practică, obligatorie la orice
+schimbare de cod:
+- Orice constantă/valoare copiată dintr-un alt fișier/repo (chei, ID-uri,
+  praguri, URL-uri) se verifică ACTIV cu `grep`, nu se presupune corectă
+  doar pentru că a fost copiată — un audit se oprește abia când TOATE
+  aparițiile au fost verificate, nu doar cea raportată inițial.
+- O funcționalitate nouă/modificată se declară "gata" abia după ce
+  TOATE piesele ei sunt implementate și verificate — cod, rebuild+reinstall
+  (Regula 0), versiune sincronizată peste tot unde trebuie (Regula 14),
+  paritate Mac/Windows dacă aplică (regula de mai jos), `CHANGELOG.md`
+  (Regula 25). O piesă lăsată "pentru mai târziu" se spune EXPLICIT, nu se
+  ascunde într-un răspuns care sună ca "gata".
+- Orice implementare/îmbunătățire nouă a acestei Părți 1 se scrie DIN
+  START în `CLAUDE.md`-ul TUTUROR proiectelor din `~/Developer/` (Regula
+  11) — nu doar în repo-ul unde a pornit discuția.
+
+**31. Paritate Mac/Windows imediată, în aceeași sesiune (2026-09-03).**
+Completare la Regula 30: orice schimbare de cod livrată pe Mac care are un
+echivalent Windows în ecosistem (și invers) se portează 1:1 ÎN ACEEAȘI
+SESIUNE, fără să aștepți o cerere separată de la Cristi — portul e parte
+integrantă a schimbării, nu un TODO ulterior. Dacă portul chiar nu poate
+fi făcut acum (acces la mediul Windows indisponibil, testare reală
+imposibilă), se spune EXPLICIT ce lipsește și de ce, marcat clar în
+`CHANGELOG.md` ca "TODO paritate Windows/Mac" (Regula existentă de
+documentație) — nu se lasă nemenționat.
+
 ## [PARTEA 2: SPECIFICAȚII TEHNICE PROIECT]
 
 ## REGULĂ PERMANENTĂ: Locația proiectului pe disc (2026-08-25)
@@ -786,6 +818,170 @@ subfolderul `Aplicatie/`. Fix: `v1.2.3` tăiat din commit-ul curent.
 - Versiune sincronizată la `1.2.3` în `backend/config.py` (`APP_VERSION`)
   și `docs/update.json` (ambele surse de adevăr pentru punctele 1 și 2
   din Directiva Supremă).
+
+## v2.0.0 (2026-09-04) — Refactorizare majoră: arhitectură nativă + pipeline configurabil
+
+Cerută explicit de Cristi ca modernizare aditivă peste codul existent, NU
+o rescriere (analiză completă a repo-ului + propunere de arhitectură prin
+Plan Mode, aprobată înainte de a scrie cod). Rezumat tehnic complet —
+`CHANGELOG.md` are varianta scurtă, orientată client.
+
+**Găsit la analiză, verificat direct în cod (nu presupus)**: aplicația era
+deja mult mai matură decât sugera cererea inițială (auth+WebAuthn,
+licențiere Ed25519+trial, self-updater real, update checker cu pop-up,
+sync self-hosted, calendar ICS, folder-picker nativ deja funcțional prin
+`osascript`/`tkinter`) — problema reală "arhitectură veche" era punctuală:
+`app.py::main()` deschidea literal browser-ul de sistem
+(`webbrowser.open()`), iar pipeline-ul de etape era un enum Python
+hardcodat (`PROJECT_STATUSES`/`PROJECT_TYPES`), fără istoric.
+
+**A. Fereastră nativă** — `webbrowser.open()` înlocuit cu **pywebview**
+(`backend/app.py::main()`): Flask rulează acum într-un thread de fundal,
+`webview.create_window()`+`webview.start()` pe thread-ul principal
+desenează fereastra reală. Verificat REAL, nu doar "ar trebui să
+meargă": rulat `python app.py` direct (fereastra s-a deschis, a servit
+tot frontend-ul) ȘI, mai important, **build PyInstaller complet local**
+(`pyinstaller build/build-mac.spec`, cu PyInstaller 6.22 — 6.10 fixat în
+`requirements.txt` nu suportă Python 3.14 de pe această mașină, problemă
+de mediu preexistentă, neschimbată aici) — `.app`-ul rezultat lansat
+direct, fereastra pywebview s-a deschis corect, zero hiddenimports
+suplimentare necesare (`pyinstaller-hooks-contrib` acoperă deja
+`pywebview`). Dependințe noi în `requirements.txt`: `pywebview`,
+`pyobjc-framework-Cocoa/WebKit/Quartz` (Mac), `pythonnet` (Windows,
+backend implicit EdgeChromium) — **partea Windows NU a putut fi testată
+real de-aici** (fără mașină Windows), rămâne de confirmat o dată de
+Cristi.
+
+**B. Pipeline dinamic** — tabele noi `ProjectTypeDef`/`ProjectStageDef`
+(`backend/models.py`), per-user, editabile/reordonabile din Setări
+("Tipuri & Etape proiect"), seed automat din vechile constante
+(`seed.py::seed_default_pipeline_defs`, apelat la înregistrare ȘI la
+migrare pentru userii existenți, `app.py::_migrate_schema`) — clienții
+existenți nu-și pierd datele. Audit trail real: `ProjectStageEvent`, un
+rând NOU (niciodată suprascris) la fiecare avansare (`next-step` sau
+click direct pe stepper — `jump-to-stage`), inclusiv la creare. Stepper
+interactiv în Quick Preview (`projects.html`), cu istoric per-proiect.
+Verificat complet prin curl, pe o bază de date izolată (nu cea reală a
+lui Cristi): creare proiect, jump direct, istoric cu 2+ rânduri, adăugare/
+reordonare/dezactivare tip și etapă custom, **și blocarea corectă (409)
+a ștergerii unei etape/tip încă în uz**.
+
+**C. Context total** — `Client.kind` (individual/informal; Company
+existent = juridic, cu CUI), `fiscal_id` opțional, `is_flagged`/
+`flag_note` pe Client ȘI Project (badge vizibil, distinct de `notes`).
+`PAYMENT_STATUSES` +„advance", `CURRENCIES` +USD (inclusiv
+`auth.py::set_currency`, care valida hardcodat doar EUR/RON — bug de
+drift închis pe drum). `balance_due`/`is_overdue` calculate direct pe
+`Project.to_dict()` (`is_overdue` e computed, NU un al 5-lea status
+stocat — depinde de data curentă, nu de o alegere manuală). Endpoint nou
+`/api/open-folder` (oglindă exactă a lui `pick-folder`, `open`/
+`explorer`), buton „Deschide folderul" lângă fiecare cale RAW/Montaj/
+Export.
+
+**D. Checklist-uri** — auto-aplicare la creare proiect
+(`create_project`: caută `ChecklistTemplate` cu `project_type` potrivit,
+copiază itemele) — verificat: proiect nou tip nuntă → 2 checklist-uri
+aplicate automat. Item de checklist capătă `equipment_id` opțional,
+autocompletare din inventar în UI (`+ din inventar`), enriched cu
+`equipment_name` în `to_dict()`.
+
+**E. Echipament** — status nou „subrented"; `return_checkout_item`
+capătă `condition` (ok/missing/damaged): avariat → `maintenance`,
+lipsă → `lost` (vizibil, cu alertă în UI), nu mai revine tăcut la
+`available`. **Fix real, verificat direct**: `complete_checkout` (închide
+forțat o fișă) lăsa echipamentul blocat la nesfârșit pe `checked_out`,
+fără nicio alertă — acum orice item neprocesat devine `missing`→`lost`,
+răspunsul include `newly_missing_count` pentru alertă explicită în UI.
+Testat cu date reale prin curl: 2 echipamente pe o fișă, unul întors OK,
+celălalt rămas la `complete` → confirmat trecut pe `lost`, alertă
+generată.
+
+## v2.0.1 (2026-09-04) — F închis complet: revocare, preț dinamic, catalog
+
+Continuarea directă a secțiunii F de mai jos (v2.0.0) — după citirea
+implementării de referință reale din `gdc-plugin-manager-catalog-vendor`
+(`RevocationCheck.swift`, `SupabaseConfig.swift`, migrarea SQL,
+`AnalyticsClient.swift`, `PricingChecker.swift` din DataMover), nu ghicit.
+
+- `backend/revocation_check.py` (nou) — port 1:1 al `RevocationCheck.swift`:
+  RPC Supabase `is_license_revoked(machine_id, product_id)`, fail-open,
+  verificare la lansare + la 6 ore (thread de fundal). Cheia Supabase
+  folosită e cea "anon public", identică cu restul ecosistemului — RLS
+  blochează orice altceva decât acest RPC exact, deci e sigur de comis.
+  Cablat în `license_manager.is_licensed()`: o licență validă Ed25519 dar
+  marcată revocată devine `False` (cade pe trial/demo), niciodată
+  invers — revocarea nu suprascrie niciodată o stare "not revoked" pe
+  baza unui răspuns vechi/lipsă.
+- `backend/analytics_client.py` (nou) — port 1:1 al `AnalyticsClient.swift`:
+  `POST /rest/v1/devices` (fire-and-forget, thread separat, erori
+  înghițite). Notă specifică acestui repo: aplicația nu are conceptul de
+  "email" (cont local username/parolă) — trimis gol, nu omis, ca
+  înregistrarea să rămână structural identică cu restul ecosistemului.
+  Apelat la `register()` și `login()` (`auth.py`).
+- `backend/pricing_checker.py` (nou) + `GET /api/license/pricing`
+  (`license_routes.py`, public) — port 1:1 al `PricingChecker.swift`
+  (DataMover): citește `gordas.dev/pricing.json`, calculează fereastra
+  de ofertă activă, fail-open pe `25 €` (suma deja documentată în acest
+  repo — NU 23 € generic, prețul specific era deja stabilit). Verificat
+  live: fără intrare pentru acest produs în `pricing.json`, ruta
+  întoarce corect fallback-ul, nu o eroare.
+- `frontend/settings.html` — mesajul WhatsApp + rândul de preț din
+  Setări citesc acum prin `/api/license/pricing`, nu mai au suma
+  hardcodată `25€ lifetime` în JS.
+- **`gdc-plugin-manager-catalog-vendor/docs/catalog.json`**: adăugat
+  `"pricingProductID": "gdc-production-manager"` pe intrarea deja
+  existentă (aplicația era deja în catalog, doar fără preț propriu) —
+  edit chirurgical (o linie), nu regenerare completă a fișierului (prima
+  încercare, cu `json.dump(sort_keys=True)`, a rescris tot fișierul,
+  847 linii — anulată explicit, refăcută corect).
+- **`gdc-plugin-manager-catalog-vendor/docs/pricing.json`**: intrare nouă
+  `"gdc-production-manager"`, `basePrice: 25 EUR`, fără promoție
+  programată (nicio decizie de preț/ofertă luată unilateral — Cristi
+  poate adăuga o promoție oricând din Furnizor, panoul "Prețuri & Oferte").
+- **NEATINS, intenționat**: `catalog.json`/`pricing.json` sunt fișiere
+  statice, editate direct (nu prin Furnizor/GitOps) — modificate local în
+  acest repo, DAR necomise/nepublicate încă pe `gdc-plugin-manager-catalog-vendor`
+  (repo separat, cu propriul flux de commit+push) — vezi jurnalul acelui
+  repo pentru comanda exactă de publicare.
+
+**Verificat live**: `/api/license/pricing` (fail-open confirmat, 25 EUR),
+`/api/license/status` neafectat de integrarea de revocare, înregistrare
+cont nouă (declanșează `analytics_client.register_device` fără să
+blocheze/crape), zero erori server. **Nu s-a putut verifica**: un
+răspuns REAL "true" de la RPC-ul de revocare (necesită o intrare reală în
+`license_revocations`, pusă manual de Cristi din Supabase) — comportamentul
+fail-open pe absența răspunsului e singurul verificat direct.
+
+## v2.0.0 (2026-09-04, F parțial la publicare — vezi v2.0.1 mai sus pentru închidere completă)
+
+**F. Integrare GDC Plugin Manager — PARȚIAL, restul EXPLICIT deferred**
+(Regula 30, nu ascuns): protocolul de licențiere (Ed25519+`machine_id.py`)
+e deja identic cu restul ecosistemului, nimic de schimbat acolo.
+Implementat acum: Profil (Nume/Username, acest repo nu are conceptul de
+"Email" — aplicație 100% locală, fără cont online) + Machine ID mutate
+vizibil în sidebar (`renderShell`/`renderLicenseBadge`), nu doar în
+Settings. **NEIMPLEMENTAT, decis explicit cu Cristi să rămână așa
+deocamdată**: revocare/blacklist prin Supabase (Regula 12) și Pricing
+Manager dinamic (Regula 27) — ambele cer citirea prealabilă a
+implementării de referință din `gdc-plugin-manager-catalog-vendor`
+(schemă Supabase reală, format `pricing.json`) ca să nu fie ghicite;
+adăugarea acestei aplicații în `catalog.json` — schimbare pe alt repo,
+nefăcută încă. TODO real pentru o sesiune viitoare, nu opțional uitat.
+
+**G. Versiune & packaging** — `2.0.0` sincronizat în
+`backend/config.py`, `docs/update.json`, `build/build-mac.spec`
+(`CFBundleShortVersionString`/`CFBundleVersion` — găsite desincronizate
+de la `1.2.1`, drift preexistent, reparat pe drum) și `installer.iss`
+(`MyAppVersion` — găsit la `1.2.5`, la fel desincronizat, reparat).
+Packaging Mac (`.pkg` semnat+notarizat+stapled, instalare directă în
+`/Applications`) și Windows (Inno Setup, Program Files) rămân neatinse —
+deja conforme conform auditurilor de mai sus; DB/config deja separate
+corect în Application Support/AppData (`config.py::get_data_dir()`), deci
+supraviețuiesc oricărui update. **Nu s-a rulat un build de release real
+(cu semnare/notarizare/CI)** — doar buildul local de verificare descris
+la punctul A. Pasul de instalare efectivă (dublu-click pe pkg, prompt de
+parolă admin) rămâne de confirmat manual, o dată, de Cristi — la fel ca
+la restul ecosistemului.
 
 ## Completare 2026-08-26 (v1.2.4) — pop-up modal, nu doar banner
 Verificat explicit: punctul 2 din Directiva Supremă (update checker) exista

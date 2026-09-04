@@ -58,7 +58,8 @@
 
       <div class="card settings-section" id="license">
         <h3>${t("settings_license_section")}</h3>
-        <div id="license-status-line" class="settings-hint" style="margin-bottom:12px;">…</div>
+        <div id="license-status-line" class="settings-hint" style="margin-bottom:4px;">…</div>
+        <div id="license-price-line" class="settings-hint" style="margin-bottom:12px;"></div>
         <div class="field">
           <label>${t("machine_id_label")}</label>
           <div class="code-box">
@@ -120,11 +121,36 @@
         <button class="btn btn-ghost btn-sm" id="new-template-btn">+ ${t("new_template")}</button>
         <div id="template-modal-root"></div>
       </div>
+
+      <div class="card settings-section">
+        <h3>${t("pipeline_settings_title")}</h3>
+        <p class="settings-hint" style="margin-bottom:16px;">${t("pipeline_settings_sub")}</p>
+
+        <h4 class="pipeline-subhead">${t("pipeline_types_section")}</h4>
+        <div id="pipeline-types-list" class="list" style="margin-bottom:10px;"></div>
+        <div style="display:flex; gap:8px; margin-bottom:22px;">
+          <input type="text" id="new-type-input" placeholder="${t("pipeline_add_type_placeholder")}" style="flex:1;">
+          <button class="btn btn-ghost btn-sm" id="add-type-btn">+</button>
+        </div>
+
+        <h4 class="pipeline-subhead">${t("pipeline_stages_section")}</h4>
+        <div id="pipeline-stages-list" class="list" style="margin-bottom:10px;"></div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="new-stage-input" placeholder="${t("pipeline_add_stage_placeholder")}" style="flex:1;">
+          <button class="btn btn-ghost btn-sm" id="add-stage-btn">+</button>
+        </div>
+      </div>
     `;
 
     updateSyncStatus(user);
     loadTemplates();
     loadLicenseStatus();
+    loadPipelineSettings();
+
+    document.getElementById("add-type-btn").addEventListener("click", () => addPipelineDef("type"));
+    document.getElementById("add-stage-btn").addEventListener("click", () => addPipelineDef("stage"));
+    document.getElementById("new-type-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addPipelineDef("type"); } });
+    document.getElementById("new-stage-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addPipelineDef("stage"); } });
 
     document.getElementById("export-btn").addEventListener("click", exportData);
     document.getElementById("import-input").addEventListener("change", importData);
@@ -265,8 +291,23 @@
     try {
       LAST_LICENSE_STATUS = await API.get("/api/license/status");
       document.getElementById("settings-machine-id").textContent = LAST_LICENSE_STATUS.machine_id;
+
+      // v2.0.0 (Regula 27): pret dinamic din pricing.json, fara
+      // recompilare - fail-open pe fallback-ul din pricing_checker.py
+      // daca fetch-ul esueaza (nu ar trebui, /api/license/pricing insusi
+      // e fail-open, dar ramanem defensivi si aici).
+      let pricing = { price: 25, currency: "EUR", promo_label: null };
+      try { pricing = await API.get("/api/license/pricing"); } catch (e) {}
+      const priceText = `${pricing.price}${pricing.currency === "EUR" ? "€" : " " + pricing.currency}`;
+      const priceLine = document.getElementById("license-price-line");
+      if (priceLine) {
+        priceLine.textContent = pricing.promo_label
+          ? `${priceText} lifetime — ${pricing.promo_label}`
+          : `${priceText} lifetime`;
+      }
+
       const msg = encodeURIComponent(
-        `Salut! Vreau să activez GDC Production Manager (25€ lifetime). ID calculator: ${LAST_LICENSE_STATUS.machine_id}`
+        `Salut! Vreau să activez GDC Production Manager (${priceText} lifetime). ID calculator: ${LAST_LICENSE_STATUS.machine_id}`
       );
       const waNumber = ['34', '643', '109', '970'].join('');
       document.getElementById("settings-whatsapp-btn").href = `https://wa.me/${waNumber}?text=${msg}`;
@@ -279,6 +320,144 @@
         line.textContent = t("license_status_expired");
       }
     } catch (e) {}
+  }
+
+  // v2.0.0: Project Types & Stages management (ProjectTypeDef/ProjectStageDef).
+  let ALL_PIPELINE_TYPES = [];
+  let ALL_PIPELINE_STAGES = [];
+
+  function pipelineApiBase(kind) {
+    return kind === "type" ? "/api/project-types" : "/api/project-stages";
+  }
+
+  async function loadPipelineSettings() {
+    try {
+      const [types, stages] = await Promise.all([
+        API.get("/api/project-types"),
+        API.get("/api/project-stages"),
+      ]);
+      ALL_PIPELINE_TYPES = types;
+      ALL_PIPELINE_STAGES = stages;
+      renderPipelineDefList("type");
+      renderPipelineDefList("stage");
+    } catch (e) {}
+  }
+
+  function pipelineDefRowHtml(entry, kind, index, total) {
+    return `
+      <div class="row-card" style="grid-template-columns: 1fr auto; padding:10px 14px;">
+        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+          <span class="row-title" style="font-size:13px; ${entry.is_active ? "" : "color:var(--text-faint); text-decoration:line-through;"}">${escapeHtmlShared(entry.label)}</span>
+          ${!entry.is_active ? `<span class="status-pill" style="opacity:.75; flex-shrink:0;">${t("pipeline_inactive_badge")}</span>` : ""}
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn btn-ghost btn-sm" data-move="${kind}:${entry.id}:up" title="${t("pipeline_move_up")}" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-move="${kind}:${entry.id}:down" title="${t("pipeline_move_down")}" ${index === total - 1 ? "disabled" : ""}>↓</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-rename="${kind}:${entry.id}">✎</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-toggle-active="${kind}:${entry.id}">${entry.is_active ? t("pipeline_deactivate") : t("pipeline_activate")}</button>
+          <button type="button" class="btn btn-danger btn-sm" data-delete-def="${kind}:${entry.id}">${t("delete")}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPipelineDefList(kind) {
+    const list = kind === "type" ? ALL_PIPELINE_TYPES : ALL_PIPELINE_STAGES;
+    const container = document.getElementById(kind === "type" ? "pipeline-types-list" : "pipeline-stages-list");
+    if (!container) return;
+    container.innerHTML = list.map((entry, i) => pipelineDefRowHtml(entry, kind, i, list.length)).join("");
+
+    container.querySelectorAll("[data-move]").forEach(btn => {
+      const [k, id, dir] = btn.dataset.move.split(":");
+      btn.addEventListener("click", () => movePipelineDef(k, Number(id), dir));
+    });
+    container.querySelectorAll("[data-rename]").forEach(btn => {
+      const [k, id] = btn.dataset.rename.split(":");
+      btn.addEventListener("click", () => renamePipelineDef(k, Number(id)));
+    });
+    container.querySelectorAll("[data-toggle-active]").forEach(btn => {
+      const [k, id] = btn.dataset.toggleActive.split(":");
+      btn.addEventListener("click", () => togglePipelineDefActive(k, Number(id)));
+    });
+    container.querySelectorAll("[data-delete-def]").forEach(btn => {
+      const [k, id] = btn.dataset.deleteDef.split(":");
+      btn.addEventListener("click", () => deletePipelineDef(k, Number(id)));
+    });
+  }
+
+  // Refreshes both this page's own lists AND the app-wide STAGE_DEFS/
+  // TYPE_DEFS/STATUS_ORDER/PROJECT_TYPES (translations.js) - every other
+  // open page picks up the change next time it loads.
+  async function refreshPipelineEverywhere() {
+    await loadPipelineDefs();
+    await loadPipelineSettings();
+  }
+
+  async function addPipelineDef(kind) {
+    const input = document.getElementById(kind === "type" ? "new-type-input" : "new-stage-input");
+    const label = input.value.trim();
+    if (!label) return;
+    try {
+      await API.post(pipelineApiBase(kind), { label });
+      input.value = "";
+      await refreshPipelineEverywhere();
+      showToast(t("saved"));
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function renamePipelineDef(kind, id) {
+    const list = kind === "type" ? ALL_PIPELINE_TYPES : ALL_PIPELINE_STAGES;
+    const entry = list.find(x => x.id === id);
+    const newLabel = prompt(t("field_title"), entry ? entry.label : "");
+    if (newLabel === null || !newLabel.trim()) return;
+    try {
+      await API.put(`${pipelineApiBase(kind)}/${id}`, { label: newLabel.trim() });
+      await refreshPipelineEverywhere();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function togglePipelineDefActive(kind, id) {
+    const list = kind === "type" ? ALL_PIPELINE_TYPES : ALL_PIPELINE_STAGES;
+    const entry = list.find(x => x.id === id);
+    if (!entry) return;
+    try {
+      await API.put(`${pipelineApiBase(kind)}/${id}`, { is_active: !entry.is_active });
+      await refreshPipelineEverywhere();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function deletePipelineDef(kind, id) {
+    if (!confirm(t("confirm_delete_pipeline_def"))) return;
+    try {
+      await API.del(`${pipelineApiBase(kind)}/${id}`);
+      await refreshPipelineEverywhere();
+    } catch (e) {
+      if (e.payload && e.payload.error === "in_use") {
+        showToast(tf("pipeline_delete_in_use", { count: e.payload.count }), "error");
+      } else {
+        showToast(errorMessage(e), "error");
+      }
+    }
+  }
+
+  async function movePipelineDef(kind, id, direction) {
+    const list = (kind === "type" ? ALL_PIPELINE_TYPES : ALL_PIPELINE_STAGES).slice();
+    const idx = list.findIndex(x => x.id === id);
+    const swapWith = direction === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || swapWith < 0 || swapWith >= list.length) return;
+    [list[idx], list[swapWith]] = [list[swapWith], list[idx]];
+    try {
+      await API.post(`${pipelineApiBase(kind)}/reorder`, { order: list.map(x => x.id) });
+      await refreshPipelineEverywhere();
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
   }
 
   let ALL_TEMPLATES = [];
@@ -344,7 +523,7 @@
               <label>${t("template_project_type")}</label>
               <select id="tpl-project-type">
                 <option value="">${t("no_template")}</option>
-                ${PROJECT_TYPES.map(pt => `<option value="${pt}" ${tpl && tpl.project_type === pt ? "selected" : ""}>${t("type_" + pt)}</option>`).join("")}
+                ${PROJECT_TYPES.map(pt => `<option value="${pt}" ${tpl && tpl.project_type === pt ? "selected" : ""}>${typeLabel(pt)}</option>`).join("")}
               </select>
             </div>
             <div class="field">

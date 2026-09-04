@@ -14,6 +14,7 @@ import time
 
 import license_validator
 import machine_id
+import revocation_check
 from config import DATA_DIR
 
 TRIAL_DAYS = 25
@@ -77,6 +78,14 @@ def is_licensed() -> bool:
     result = license_validator.check(serial)
 
     if result.valid:
+        # v2.0.0 (Regula 12): revocare online, fail-open - o licenta deja
+        # activata NU se blocheaza pentru ca userul e offline; se aplica
+        # abia dupa un raspuns explicit "true" din Supabase (vezi
+        # revocation_check.py). Verificarea in sine ruleaza in fundal
+        # (app.py::main -> revocation_check.start_periodic_refresh) - aici
+        # doar citim starea deja cunoscuta, sincron, fara retea.
+        if revocation_check.is_revoked():
+            return False
         state["last_valid_check_ts"] = int(time.time())
         _save_state(state)
         return True

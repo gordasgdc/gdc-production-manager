@@ -37,7 +37,7 @@
         <input type="text" class="search-input" id="search-input" placeholder="${t("search_projects")}">
         <select class="filter-select" id="status-filter">
           <option value="">${t("all_statuses")}</option>
-          ${STATUS_ORDER.map(s => `<option value="${s}">${t("status_" + s)}</option>`).join("")}
+          ${STATUS_ORDER.map(s => `<option value="${s}">${stageLabel(s)}</option>`).join("")}
         </select>
       </div>
 
@@ -74,7 +74,7 @@
     list.innerHTML = items.map(p => `
       <div class="row-card row-card-clickable" data-preview="${p.id}">
         <div>
-          <div class="row-title">${escapeHtml(p.title)}</div>
+          <div class="row-title">${escapeHtml(p.title)} ${flagBadgeHtml(p.is_flagged)}</div>
           <div class="row-sub">${p.client_name ? escapeHtml(p.client_name) : ""} ${p.shoot_location ? "· " + escapeHtml(p.shoot_location) : ""}</div>
         </div>
         <div>
@@ -84,7 +84,7 @@
         <div class="row-meta">
           <div class="mono">${t("field_delivery_date")}: ${fmtDate(p.delivery_date)}</div>
           <div class="mono">${fmtMoney(p.amount_paid, p.currency)} / ${fmtMoney(p.budget_total, p.currency)}</div>
-          <div style="margin-top:4px;">${payStatusPillHtml(p.payment_status)}</div>
+          <div style="margin-top:4px;">${payStatusPillHtml(p.payment_status, p.is_overdue)}</div>
         </div>
         <div class="row-actions">
           <a class="btn btn-ghost btn-sm" href="project-report.html?id=${p.id}" title="${t("project_report")}">📄</a>
@@ -123,16 +123,19 @@
       <div class="modal-backdrop" id="preview-backdrop">
         <div class="modal">
           <div class="modal-header">
-            <h3>${escapeHtml(p.title)}</h3>
+            <h3>${escapeHtml(p.title)} ${flagBadgeHtml(p.is_flagged)}</h3>
             <button class="modal-close" id="preview-close">✕</button>
           </div>
           <div class="preview-body">
-            <div class="preview-row">${statusPillHtml(p.status)} <span class="row-sub">${t("type_" + p.project_type)}</span></div>
+            <div class="preview-row"><span class="row-sub">${typeLabel(p.project_type)}</span></div>
+            <div class="preview-row" style="flex-direction:column; align-items:stretch;">${stageStepperHtml(p.id, p.status)}</div>
             ${p.client_name ? `<div class="preview-row"><strong>${t("field_client")}:</strong> ${escapeHtml(p.client_name)}</div>` : ""}
             ${p.shoot_location ? `<div class="preview-row"><strong>${t("field_location")}:</strong> ${escapeHtml(p.shoot_location)} <a href="${mapsUrl(p.shoot_location)}" target="_blank" title="${t("open_in_maps")}">📍</a></div>` : ""}
             <div class="preview-row"><strong>${t("field_shoot_date")}:</strong> ${fmtDate(p.shoot_date)}</div>
             <div class="preview-row"><strong>${t("field_delivery_date")}:</strong> ${fmtDate(p.delivery_date)}</div>
-            <div class="preview-row"><strong>${t("field_budget")}:</strong> ${fmtMoney(p.amount_paid, p.currency)} / ${fmtMoney(p.budget_total, p.currency)} · ${t("pay_" + p.payment_status)}</div>
+            <div class="preview-row"><strong>${t("field_budget")}:</strong> ${fmtMoney(p.amount_paid, p.currency)} / ${fmtMoney(p.budget_total, p.currency)} ${payStatusPillHtml(p.payment_status, p.is_overdue)}</div>
+            <div class="preview-row"><strong>${t("field_balance_due")}:</strong> ${fmtMoney(p.balance_due, p.currency)}</div>
+            ${p.flag_note ? `<div class="preview-row"><strong>${t("flag_badge")}:</strong> ${escapeHtml(p.flag_note)}</div>` : ""}
             ${p.notes ? `<div class="preview-row"><strong>${t("field_notes")}:</strong> ${escapeHtml(p.notes)}</div>` : ""}
           </div>
           <div class="modal-actions">
@@ -153,12 +156,51 @@
       close();
       openModal(id);
     });
+
+    document.querySelectorAll("[data-jump-stage]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const [pid, stage] = btn.dataset.jumpStage.split(":");
+        jumpToStage(Number(pid), stage);
+      });
+    });
+    const historyBtn = document.getElementById("preview-backdrop").querySelector("[data-stage-history]");
+    if (historyBtn) {
+      historyBtn.addEventListener("click", () => toggleStageHistory(Number(historyBtn.dataset.stageHistory)));
+    }
+  }
+
+  async function jumpToStage(projectId, stage) {
+    try {
+      await API.post(`/api/projects/${projectId}/jump-to-stage`, { stage });
+      await loadData();
+      openPreview(projectId); // re-render the stepper in its new state
+    } catch (e) {
+      showToast(errorMessage(e), "error");
+    }
+  }
+
+  async function toggleStageHistory(projectId) {
+    const panel = document.getElementById(`stage-history-panel-${projectId}`);
+    if (!panel) return;
+    if (panel.dataset.open === "1") {
+      panel.innerHTML = "";
+      panel.dataset.open = "0";
+      return;
+    }
+    panel.innerHTML = `<p style="color:var(--text-faint); font-size:12px;">…</p>`;
+    try {
+      const events = await API.get(`/api/projects/${projectId}/stage-history`);
+      panel.innerHTML = stageHistoryListHtml(events);
+      panel.dataset.open = "1";
+    } catch (e) {
+      panel.innerHTML = "";
+    }
   }
 
   async function advanceNextStep(id) {
     try {
       const result = await API.post(`/api/projects/${id}/next-step`);
-      showToast(tf("next_step_done", { status: t("status_" + result.status) }));
+      showToast(tf("next_step_done", { status: stageLabel(result.status) }));
       await loadData();
     } catch (e) {
       showToast(errorMessage(e), "error");
@@ -172,8 +214,8 @@
     const clientOptions = `<option value="">${t("no_client")}</option>` +
       ALL_CLIENTS.map(c => `<option value="${c.id}" ${p && p.client_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("");
 
-    const typeOptions = PROJECT_TYPES.map(ty => `<option value="${ty}" ${p && p.project_type === ty ? "selected" : ""}>${t("type_" + ty)}</option>`).join("");
-    const statusOptions = STATUS_ORDER.map(s => `<option value="${s}" ${p && p.status === s ? "selected" : (!p && s === "planning" ? "selected" : "")}>${t("status_" + s)}</option>`).join("");
+    const typeOptions = PROJECT_TYPES.map(ty => `<option value="${ty}" ${p && p.project_type === ty ? "selected" : ""}>${typeLabel(ty)}</option>`).join("");
+    const statusOptions = STATUS_ORDER.map((s, i) => `<option value="${s}" ${p && p.status === s ? "selected" : (!p && i === 0 ? "selected" : "")}>${stageLabel(s)}</option>`).join("");
     const paymentOptions = PAYMENT_STATUSES.map(ps => `<option value="${ps}" ${p && p.payment_status === ps ? "selected" : ""}>${t("pay_" + ps)}</option>`).join("");
     const currencyOptions = CURRENCIES.map(cu => `<option value="${cu}" ${p && p.currency === cu ? "selected" : (!p && cu === "EUR" ? "selected" : "")}>${t("currency_" + cu)}</option>`).join("");
 
@@ -222,6 +264,7 @@
               <div style="display:flex; gap:8px;">
                 <input type="text" id="f-path-raw" style="flex:1;" value="${p && p.path_raw ? escapeHtml(p.path_raw) : ""}">
                 <button type="button" class="btn btn-ghost btn-sm" data-pick-folder="f-path-raw">${t("browse")}</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-open-folder="f-path-raw">${t("open_folder_btn")}</button>
               </div>
             </div>
             <div class="field">
@@ -229,6 +272,7 @@
               <div style="display:flex; gap:8px;">
                 <input type="text" id="f-path-edit" style="flex:1;" value="${p && p.path_edit ? escapeHtml(p.path_edit) : ""}">
                 <button type="button" class="btn btn-ghost btn-sm" data-pick-folder="f-path-edit">${t("browse")}</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-open-folder="f-path-edit">${t("open_folder_btn")}</button>
               </div>
             </div>
             <div class="field">
@@ -236,6 +280,7 @@
               <div style="display:flex; gap:8px;">
                 <input type="text" id="f-path-export" style="flex:1;" value="${p && p.path_export ? escapeHtml(p.path_export) : ""}">
                 <button type="button" class="btn btn-ghost btn-sm" data-pick-folder="f-path-export">${t("browse")}</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-open-folder="f-path-export">${t("open_folder_btn")}</button>
               </div>
             </div>
             <div class="field-row">
@@ -262,9 +307,16 @@
               <label>${t("field_notes")}</label>
               <textarea id="f-notes">${p && p.notes ? escapeHtml(p.notes) : ""}</textarea>
             </div>
+            <div class="field">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="f-flagged" style="width:auto;" ${p && p.is_flagged ? "checked" : ""}>
+                ${t("field_flag")}
+              </label>
+              <textarea id="f-flag-note" placeholder="${t("flag_note_placeholder")}" style="margin-top:6px;">${p && p.flag_note ? escapeHtml(p.flag_note) : ""}</textarea>
+            </div>
             ${id ? `
               <div class="field">
-                <label>${t("stage_notes_title")} — ${t("status_" + (p ? p.status : "planning"))}</label>
+                <label>${t("stage_notes_title")} — ${stageLabel(p ? p.status : STATUS_ORDER[0])}</label>
                 <textarea id="f-stage-note">${p && p.stage_notes && p.stage_notes[p.status] ? escapeHtml(p.stage_notes[p.status]) : ""}</textarea>
                 <div class="field-hint">${t("stage_notes_save")} ${t("save").toLowerCase()}</div>
               </div>
@@ -317,6 +369,9 @@
     document.querySelectorAll("[data-pick-folder]").forEach(btn => {
       btn.addEventListener("click", () => pickFolderInto(btn.dataset.pickFolder));
     });
+    document.querySelectorAll("[data-open-folder]").forEach(btn => {
+      btn.addEventListener("click", () => openFolderFrom(btn.dataset.openFolder));
+    });
 
     if (id) {
       document.getElementById("datamover-import-btn").addEventListener("click", () => {
@@ -340,6 +395,7 @@
 
       loadChecklists(id);
       loadChecklistTemplatesIntoSelect();
+      loadEquipmentForChecklists();
       document.getElementById("add-checklist-btn").addEventListener("click", () => createChecklist(id));
     }
 
@@ -361,6 +417,8 @@
         payment_status: document.getElementById("f-payment-status").value,
         currency: document.getElementById("f-currency").value,
         notes: document.getElementById("f-notes").value,
+        is_flagged: document.getElementById("f-flagged").checked,
+        flag_note: document.getElementById("f-flag-note").value,
       };
       try {
         if (id) {
@@ -369,11 +427,14 @@
           if (stageNoteEl && p) {
             await API.put(`/api/projects/${id}/stage-notes`, { status: p.status, note: stageNoteEl.value });
           }
+          showToast(t("saved"));
         } else {
-          await API.post("/api/projects", payload);
+          const created = await API.post("/api/projects", payload);
+          showToast(created.checklist_count
+            ? tf("checklists_auto_applied", { count: created.checklist_count })
+            : t("saved"));
         }
         close();
-        showToast(t("saved"));
         await loadData();
       } catch (err) {
         showToast(errorMessage(err), "error");
@@ -479,6 +540,18 @@
     }
   }
 
+  let ALL_EQUIPMENT_FOR_CL = [];
+
+  /// v2.0.0: loaded once per project-modal open, feeds the "+ din
+  /// inventar" quick-add select on every checklist card.
+  async function loadEquipmentForChecklists() {
+    try {
+      ALL_EQUIPMENT_FOR_CL = await API.get("/api/equipment");
+    } catch (e) {
+      ALL_EQUIPMENT_FOR_CL = [];
+    }
+  }
+
   async function loadChecklistTemplatesIntoSelect() {
     const select = document.getElementById("new-checklist-template");
     if (!select) return;
@@ -533,13 +606,17 @@
           ${cl.items.map(it => `
             <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
               <input type="checkbox" data-toggle-item="${cl.id}:${it.id}" ${it.done ? "checked" : ""} style="width:auto;">
-              <span style="${it.done ? "text-decoration:line-through; color:var(--text-faint);" : ""}">${escapeHtml(it.text)}</span>
+              <span style="${it.done ? "text-decoration:line-through; color:var(--text-faint);" : ""}">${it.equipment_id ? "🎥 " : ""}${escapeHtml(it.text)}${it.equipment_id && it.equipment_name ? ` <span class="row-sub">(${escapeHtml(it.equipment_name)})</span>` : ""}</span>
             </label>
           `).join("")}
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="btn btn-ghost btn-sm" data-mark-all="${cl.id}">${t("mark_all")}</button>
           <input type="text" placeholder="${t("add_item_placeholder")}" data-new-item="${cl.id}" style="flex:1; min-width:140px; background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:6px 10px; font-size:12.5px;">
+          <select data-equip-add="${cl.id}" style="background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:6px 10px; font-size:12.5px;">
+            <option value="">${t("add_from_equipment")}</option>
+            ${ALL_EQUIPMENT_FOR_CL.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("")}
+          </select>
         </div>
       </div>
     `;
@@ -564,6 +641,15 @@
           const text = input.value.trim();
           if (text) addChecklistItem(projectId, Number(input.dataset.newItem), text);
         }
+      });
+    });
+    container.querySelectorAll("[data-equip-add]").forEach(select => {
+      select.addEventListener("change", () => {
+        const equipmentId = Number(select.value);
+        if (!equipmentId) return;
+        const equipment = ALL_EQUIPMENT_FOR_CL.find(e => e.id === equipmentId);
+        addChecklistItem(projectId, Number(select.dataset.equipAdd), equipment ? equipment.name : "", equipmentId);
+        select.value = "";
       });
     });
   }
@@ -601,9 +687,9 @@
     }
   }
 
-  async function addChecklistItem(projectId, checklistId, text) {
+  async function addChecklistItem(projectId, checklistId, text, equipmentId) {
     try {
-      await API.post(`/api/checklists/${checklistId}/items`, { text });
+      await API.post(`/api/checklists/${checklistId}/items`, { text, equipment_id: equipmentId || null });
       await loadChecklists(projectId);
     } catch (e) {
       showToast(errorMessage(e), "error");

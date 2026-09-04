@@ -12,13 +12,17 @@ import os
 import sys
 import socket
 import threading
-import webbrowser
+import time
 
+import webview
 from flask import Flask, send_from_directory, jsonify, request
 
 from config import Config, APP_VERSION, is_frozen
-from models import db
+from models import db, User
+from seed import seed_default_pipeline_defs
 from auth import auth_bp
+import machine_id
+import revocation_check
 from routes import api_bp
 from sync import sync_bp
 from license_routes import license_bp
@@ -45,6 +49,20 @@ def find_free_port(preferred: int = 5175) -> int:
             if s.connect_ex(("127.0.0.1", port)) != 0:
                 return port
     return 0  # let the OS pick
+
+
+def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
+    """Polls the local port until Flask actually accepts connections,
+    instead of a fixed sleep - avoids a blank/error page in the native
+    window on a slower machine (v1.x guessed 0.8s; this waits exactly as
+    long as needed, up to `timeout`)."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", port)) == 0:
+                return True
+        time.sleep(0.05)
+    return False
 
 
 def _migrate_schema():
@@ -83,6 +101,38 @@ def _migrate_schema():
     # v1.4.0: User gained calendar_token (stable ICS "subscribe by URL" feed).
     if "calendar_token" not in existing_cols:
         db.session.execute(text("ALTER TABLE users ADD COLUMN calendar_token VARCHAR(64)"))
+        db.session.commit()
+
+    # v2.0.0: project_type_defs/project_stage_defs/project_stage_events are
+    # brand-new tables, already created above by db.create_all() - only the
+    # per-user SEED ROWS need a manual pass here, for anyone who registered
+    # before this version (a fresh register() already seeds itself, see
+    # auth.py). Idempotent - seed_default_pipeline_defs() skips a user who
+    # already has rows.
+    for existing_user in User.query.all():
+        seed_default_pipeline_defs(existing_user)
+
+    # v2.0.0: Client gained kind/fiscal_id/is_flagged/flag_note; Project
+    # gained is_flagged/flag_note. Existing clients default to "individual"
+    # (matches how every pre-2.0.0 standalone Client already behaved).
+    if "kind" not in existing_client_cols:
+        db.session.execute(text("ALTER TABLE clients ADD COLUMN kind VARCHAR(20) DEFAULT 'individual'"))
+        db.session.commit()
+    if "fiscal_id" not in existing_client_cols:
+        db.session.execute(text("ALTER TABLE clients ADD COLUMN fiscal_id VARCHAR(50)"))
+        db.session.commit()
+    if "is_flagged" not in existing_client_cols:
+        db.session.execute(text("ALTER TABLE clients ADD COLUMN is_flagged BOOLEAN DEFAULT 0"))
+        db.session.commit()
+    if "flag_note" not in existing_client_cols:
+        db.session.execute(text("ALTER TABLE clients ADD COLUMN flag_note TEXT"))
+        db.session.commit()
+
+    if "is_flagged" not in existing_project_cols:
+        db.session.execute(text("ALTER TABLE projects ADD COLUMN is_flagged BOOLEAN DEFAULT 0"))
+        db.session.commit()
+    if "flag_note" not in existing_project_cols:
+        db.session.execute(text("ALTER TABLE projects ADD COLUMN flag_note TEXT"))
         db.session.commit()
 
 
@@ -140,17 +190,36 @@ def create_app() -> Flask:
 
 
 def main():
+    # v2.0.0: ferestra nativa (pywebview) inlocuieste tab-ul de browser de
+    # sistem - Flask ruleaza acum intr-un thread de fundal, iar
+    # webview.start() (obligatoriu pe thread-ul principal, mai ales pe Mac)
+    # deseneaza fereastra reala, fara bara de adresa/tab-uri.
     app = create_app()
     port = find_free_port()
     url = f"http://127.0.0.1:{port}/"
 
-    threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    server_thread = threading.Thread(
+        target=lambda: app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False, threaded=True),
+        daemon=True,
+    )
+    server_thread.start()
+    _wait_for_server(port)
+
+    # v2.0.0 (Regula 12): verificare de revocare online, la lansare +
+    # periodic - fail-open, vezi revocation_check.py. Niciodata blocanta.
+    revocation_check.start_periodic_refresh(machine_id.get_machine_id_display)
 
     print(f"GDC Production Manager v{APP_VERSION}")
     print(f"Running locally at {url}")
-    print("Close this window / press Ctrl+C to stop the app.")
 
-    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False, threaded=True)
+    webview.create_window(
+        "GDC Production Manager",
+        url,
+        min_size=(1100, 700),
+        width=1360,
+        height=860,
+    )
+    webview.start()
 
 
 if __name__ == "__main__":

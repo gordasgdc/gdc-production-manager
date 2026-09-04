@@ -208,6 +208,22 @@ button, input, select, textarea{ font-family: var(--font-body); }
 }
 .user-chip button:hover{ color: var(--tally); }
 
+/* v2.0.0 (Regula 12): Profil + HWID vizibil în sidebar, nu doar în
+   Settings - .user-chip-row keeps the original name+logout line, the
+   HWID lives right under it, always visible. */
+.user-chip-profile{ flex-direction:column; align-items:stretch; gap:6px; }
+.user-chip-row{ display:flex; align-items:center; justify-content:space-between; }
+.sidebar-hwid-row{
+  display:flex; align-items:center; justify-content:space-between;
+  font-size: 10.5px; color: var(--text-faint);
+  padding-top: 4px; border-top: 1px solid var(--border-soft);
+}
+.sidebar-hwid-row button{
+  background:none; border:none; color: var(--text-faint);
+  cursor:pointer; font-size: 12px; padding: 0 2px;
+}
+.sidebar-hwid-row button:hover{ color: var(--scope); }
+
 .main{
   padding: 28px 36px 60px 36px;
   max-width: 1180px;
@@ -312,6 +328,53 @@ button, input, select, textarea{ font-family: var(--font-body); }
   text-transform: uppercase; letter-spacing: .03em; margin-top: 6px;
 }
 
+/* v2.0.0: the clickable per-project stepper (Quick Preview) - state-driven
+   (.done/.current), never keyed by stage name, so a user-added custom
+   stage renders identically to the 7 seeded ones with zero extra CSS. */
+.stage-stepper{
+  display:flex; align-items:center; flex-wrap:wrap; gap:0; margin: 4px 0;
+}
+.stage-node{
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  background:none; border:none; cursor:pointer; padding: 4px 6px;
+  font-family: inherit; flex-shrink:0;
+}
+.stage-node .stage-dot{
+  width:14px; height:14px; border-radius:50%;
+  background: var(--bg-elevated); border: 2px solid var(--border);
+  transition: background .12s ease, border-color .12s ease;
+}
+.stage-node .stage-label{
+  font-size: 9.5px; color: var(--text-faint); text-transform:uppercase;
+  letter-spacing:.02em; white-space:nowrap;
+}
+.stage-node:hover .stage-dot{ border-color: var(--scope); }
+.stage-node.done .stage-dot{ background: var(--scope); border-color: var(--scope); }
+.stage-node.done .stage-label{ color: var(--text-muted); }
+.stage-node.current .stage-dot{
+  background: var(--amber); border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(232,163,61,0.22);
+}
+.stage-node.current .stage-label{ color: var(--amber); font-weight:600; }
+.stage-connector{ width:20px; height:2px; background: var(--border); flex-shrink:0; margin-bottom:16px; }
+.stage-connector.done{ background: var(--scope); }
+
+.stage-history-list{ margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+.stage-history-row{
+  display:flex; align-items:baseline; gap:10px; font-size:12px;
+  padding:6px 0; border-bottom:1px solid var(--border-soft);
+}
+.stage-history-row:last-child{ border-bottom:none; }
+.stage-history-label{ font-weight:600; min-width:90px; }
+.stage-history-date{ color: var(--text-faint); font-size:11px; }
+.stage-history-note{ color: var(--text-muted); flex:1; }
+.stage-history-empty{ font-size:12px; color: var(--text-faint); margin-top:8px; }
+
+.pipeline-subhead{
+  font-size:12px; text-transform:uppercase; letter-spacing:.04em;
+  color: var(--text-faint); margin: 4px 0 8px;
+}
+
 .status-pill{
   display:inline-flex; align-items:center; gap:6px;
   padding: 3px 9px; border-radius: 100px;
@@ -337,10 +400,14 @@ button, input, select, textarea{ font-family: var(--font-body); }
 
 .status-pill.pay-unpaid .dot{ background: var(--tally); }
 .status-pill.pay-unpaid{ color: var(--tally); border-color: var(--tally-dim); }
+.status-pill.pay-advance .dot{ background: #4FA3E8; }
+.status-pill.pay-advance{ color: #4FA3E8; border-color: #1E3550; }
 .status-pill.pay-partial .dot{ background: var(--amber); }
 .status-pill.pay-partial{ color: var(--amber); border-color: var(--amber-dim); }
 .status-pill.pay-paid .dot{ background: var(--scope); }
 .status-pill.pay-paid{ color: var(--scope); border-color: var(--scope-dim); }
+.status-pill.pay-overdue .dot{ background: var(--tally); }
+.status-pill.pay-overdue{ color: var(--tally); border-color: var(--tally-dim); background: var(--tally-dim); }
 
 .status-pill.eq-available .dot{ background: var(--scope); }
 .status-pill.eq-available{ color: var(--scope); border-color: var(--scope-dim); }
@@ -348,8 +415,34 @@ button, input, select, textarea{ font-family: var(--font-body); }
 .status-pill.eq-checked_out{ color: var(--amber); border-color: var(--amber-dim); }
 .status-pill.eq-maintenance .dot{ background: var(--violet); }
 .status-pill.eq-maintenance{ color: var(--violet); border-color: #2C2547; }
+.status-pill.eq-subrented .dot{ background: #4FA3E8; }
+.status-pill.eq-subrented{ color: #4FA3E8; border-color: #1E3550; }
 .status-pill.eq-lost .dot{ background: var(--tally); }
 .status-pill.eq-lost{ color: var(--tally); border-color: var(--tally-dim); }
+
+/* v2.0.0: persistent attention flag (client/project) - deliberately not
+   a semantic-status pill, so it never gets confused with payment/pipeline
+   state at a glance. */
+.flag-badge{
+  display:inline-flex; align-items:center; gap:5px;
+  padding: 3px 9px; border-radius: 100px; font-size:11.5px; font-weight:600;
+  color: var(--amber); border:1px solid var(--amber-dim); background: var(--amber-dim);
+}
+
+/* Check-in condition controls (equipment checkout detail) */
+.checkin-actions{ display:flex; gap:6px; }
+.checkin-btn{
+  border:1px solid var(--border); background:none; border-radius: var(--radius-sm);
+  padding: 3px 8px; font-size:11px; cursor:pointer; color: var(--text-faint);
+  transition: border-color .12s ease, color .12s ease;
+}
+.checkin-btn:hover{ border-color: var(--scope); color: var(--scope); }
+.checkin-btn.missing:hover{ border-color: var(--tally); color: var(--tally); }
+.checkin-btn.damaged:hover{ border-color: var(--violet); color: var(--violet); }
+.checkin-result{ font-size:11px; font-weight:600; }
+.checkin-result.ok{ color: var(--scope); }
+.checkin-result.missing{ color: var(--tally); }
+.checkin-result.damaged{ color: var(--violet); }
 
 /* ---------------------------------------------------------- tables ---- */
 

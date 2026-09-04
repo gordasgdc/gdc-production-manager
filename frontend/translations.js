@@ -132,6 +132,51 @@ const TRANSLATIONS = {
     status_review: "Review",
     status_final: "Final",
     status_delivered: "Predat",
+    stage_history_btn: "Istoric etape",
+    stage_history_title: "Istoric etape",
+    stage_history_empty: "Niciun avans înregistrat încă.",
+    pipeline_settings_title: "Tipuri & Etape proiect",
+    pipeline_settings_sub: "Adaugă, redenumește, dezactivează sau reordonează tipurile de proiect și etapele pipeline-ului. Cheia internă rămâne fixă odată creată — poți oricând schimba doar denumirea afișată.",
+    pipeline_types_section: "Tipuri de proiect",
+    pipeline_stages_section: "Etape pipeline",
+    pipeline_add_type_placeholder: "Nume tip nou (ex. Podcast)",
+    pipeline_add_stage_placeholder: "Nume etapă nouă (ex. VFX)",
+    pipeline_inactive_badge: "Dezactivat",
+    pipeline_activate: "Activează",
+    pipeline_deactivate: "Dezactivează",
+    pipeline_delete_in_use: "Nu poate fi șters — folosit de {count} proiect(e). Dezactivează-l în loc.",
+    pipeline_move_up: "Mută sus",
+    pipeline_move_down: "Mută jos",
+    confirm_delete_pipeline_def: "Ștergi definitiv această intrare?",
+
+    // v2.0.0 — context total (clienți, financiar, echipament)
+    field_client_kind: "Tip",
+    client_kind_individual: "Persoană fizică",
+    client_kind_informal: "Contact neoficial",
+    field_fiscal_id: "CNP (opțional)",
+    field_flag: "Marchează atenționare",
+    flag_note_placeholder: "Motivul atenționării (ex. întârzie plățile)…",
+    flag_badge: "⚠ Atenție",
+    pay_advance: "Avans",
+    currency_USD: "USD",
+    field_balance_due: "Rest de plată",
+    overdue_badge: "Întârziat",
+    open_folder_btn: "Deschide",
+    open_folder_missing: "Folderul nu (mai) există la această cale.",
+    add_from_equipment: "+ din inventar",
+    no_equipment_option: "— alege echipament —",
+    eq_subrented: "Subînchiriat",
+    checkout_mark_ok: "OK",
+    checkout_mark_missing: "Lipsă",
+    checkout_mark_damaged: "Avariat",
+    eq_condition_ok: "OK",
+    eq_condition_missing: "Lipsă",
+    eq_condition_damaged: "Avariat",
+    checkout_newly_missing_alert: "{count} echipament(e) marcate ca lipsă — verifică Inventarul.",
+    checkin_missing_alert: "Echipament marcat ca lipsă — stare actualizată în Inventar.",
+    checkin_damaged_alert: "Echipament marcat ca avariat — trecut automat pe „În mentenanță”.",
+    checklists_auto_applied: "{count} checklist(uri) aplicate automat pentru acest tip de proiect.",
+    profile_anonymous: "Anonim",
 
     pay_unpaid: "Neplătit",
     pay_partial: "Parțial",
@@ -559,6 +604,50 @@ const TRANSLATIONS = {
     status_review: "Review",
     status_final: "Final",
     status_delivered: "Delivered",
+    stage_history_btn: "Stage history",
+    stage_history_title: "Stage history",
+    stage_history_empty: "No advances recorded yet.",
+    pipeline_settings_title: "Project Types & Stages",
+    pipeline_settings_sub: "Add, rename, deactivate or reorder project types and pipeline stages. The internal key stays fixed once created — you can always rename just the display label.",
+    pipeline_types_section: "Project types",
+    pipeline_stages_section: "Pipeline stages",
+    pipeline_add_type_placeholder: "New type name (e.g. Podcast)",
+    pipeline_add_stage_placeholder: "New stage name (e.g. VFX)",
+    pipeline_inactive_badge: "Disabled",
+    pipeline_activate: "Enable",
+    pipeline_deactivate: "Disable",
+    pipeline_delete_in_use: "Can't delete — used by {count} project(s). Disable it instead.",
+    pipeline_move_up: "Move up",
+    pipeline_move_down: "Move down",
+    confirm_delete_pipeline_def: "Permanently delete this entry?",
+
+    field_client_kind: "Type",
+    client_kind_individual: "Individual",
+    client_kind_informal: "Informal contact",
+    field_fiscal_id: "Fiscal ID (optional)",
+    field_flag: "Flag as needing attention",
+    flag_note_placeholder: "Reason for the flag (e.g. slow to pay)…",
+    flag_badge: "⚠ Attention",
+    pay_advance: "Advance",
+    currency_USD: "USD",
+    field_balance_due: "Balance due",
+    overdue_badge: "Overdue",
+    open_folder_btn: "Open",
+    open_folder_missing: "That folder no longer exists at this path.",
+    add_from_equipment: "+ from inventory",
+    no_equipment_option: "— pick equipment —",
+    eq_subrented: "Sub-rented",
+    checkout_mark_ok: "OK",
+    checkout_mark_missing: "Missing",
+    checkout_mark_damaged: "Damaged",
+    eq_condition_ok: "OK",
+    eq_condition_missing: "Missing",
+    eq_condition_damaged: "Damaged",
+    checkout_newly_missing_alert: "{count} item(s) marked missing — check Inventory.",
+    checkin_missing_alert: "Item marked missing — status updated in Inventory.",
+    checkin_damaged_alert: "Item marked damaged — moved to \"Maintenance\" automatically.",
+    checklists_auto_applied: "{count} checklist(s) auto-applied for this project type.",
+    profile_anonymous: "Anonymous",
 
     pay_unpaid: "Unpaid",
     pay_partial: "Partial",
@@ -986,6 +1075,50 @@ const TRANSLATIONS = {
     status_review: "Revisión",
     status_final: "Final",
     status_delivered: "Entregado",
+    stage_history_btn: "Historial de etapas",
+    stage_history_title: "Historial de etapas",
+    stage_history_empty: "Ningún avance registrado todavía.",
+    pipeline_settings_title: "Tipos y Etapas de proyecto",
+    pipeline_settings_sub: "Añade, renombra, desactiva o reordena los tipos de proyecto y las etapas del pipeline. La clave interna queda fija una vez creada — siempre puedes renombrar solo la etiqueta mostrada.",
+    pipeline_types_section: "Tipos de proyecto",
+    pipeline_stages_section: "Etapas del pipeline",
+    pipeline_add_type_placeholder: "Nombre del tipo nuevo (ej. Podcast)",
+    pipeline_add_stage_placeholder: "Nombre de la etapa nueva (ej. VFX)",
+    pipeline_inactive_badge: "Desactivado",
+    pipeline_activate: "Activar",
+    pipeline_deactivate: "Desactivar",
+    pipeline_delete_in_use: "No se puede eliminar — usado por {count} proyecto(s). Desactívalo en su lugar.",
+    pipeline_move_up: "Subir",
+    pipeline_move_down: "Bajar",
+    confirm_delete_pipeline_def: "¿Eliminar definitivamente esta entrada?",
+
+    field_client_kind: "Tipo",
+    client_kind_individual: "Persona física",
+    client_kind_informal: "Contacto informal",
+    field_fiscal_id: "DNI/NIF (opcional)",
+    field_flag: "Marcar como atención",
+    flag_note_placeholder: "Motivo del aviso (ej. tarda en pagar)…",
+    flag_badge: "⚠ Atención",
+    pay_advance: "Anticipo",
+    currency_USD: "USD",
+    field_balance_due: "Saldo pendiente",
+    overdue_badge: "Atrasado",
+    open_folder_btn: "Abrir",
+    open_folder_missing: "Esa carpeta ya no existe en esta ruta.",
+    add_from_equipment: "+ del inventario",
+    no_equipment_option: "— elige equipo —",
+    eq_subrented: "Subalquilado",
+    checkout_mark_ok: "OK",
+    checkout_mark_missing: "Falta",
+    checkout_mark_damaged: "Dañado",
+    eq_condition_ok: "OK",
+    eq_condition_missing: "Falta",
+    eq_condition_damaged: "Dañado",
+    checkout_newly_missing_alert: "{count} equipo(s) marcado(s) como faltante — revisa el Inventario.",
+    checkin_missing_alert: "Equipo marcado como faltante — estado actualizado en el Inventario.",
+    checkin_damaged_alert: "Equipo marcado como dañado — pasado automáticamente a «En mantenimiento».",
+    checklists_auto_applied: "{count} checklist(s) aplicadas automáticamente para este tipo de proyecto.",
+    profile_anonymous: "Anónimo",
 
     pay_unpaid: "Sin pagar",
     pay_partial: "Parcial",
@@ -1283,12 +1416,23 @@ const TRANSLATIONS = {
   },
 };
 
-const STATUS_ORDER = ["planning", "filming", "editing", "coloring", "review", "final", "delivered"];
-const PROJECT_TYPES = ["film", "commercial", "wedding", "documentary", "broadcast", "music_video", "corporate", "other"];
-const PAYMENT_STATUSES = ["unpaid", "partial", "paid"];
+// v2.0.0: STATUS_ORDER/PROJECT_TYPES are no longer hardcoded - they're
+// this user's own editable/reorderable rows, loaded once via
+// loadPipelineDefs() (called from requireAuth(), before any page renders)
+// and kept as plain key arrays so every existing call site
+// (STATUS_ORDER.map/.indexOf, PROJECT_TYPES.map) keeps working unchanged.
+let STATUS_ORDER = [];
+let PROJECT_TYPES = [];
+let STAGE_DEFS = [];   // [{id,key,label,order,is_active}, ...] - full objects, for Settings' management panel
+let TYPE_DEFS = [];
+// v2.0.0: mirrors models.py PAYMENT_STATUSES/CURRENCIES exactly - these
+// are fixed, not user-editable (unlike STATUS_ORDER/PROJECT_TYPES above),
+// so a plain hardcoded mirror is correct here, same as the other
+// constants below.
+const PAYMENT_STATUSES = ["unpaid", "advance", "partial", "paid"];
 const COURSE_STATUSES = ["scheduled", "confirmed", "completed", "cancelled"];
 const PRODUCT_TYPES_LIST = ["dctl", "powergrade", "lut", "preset", "template", "other"];
-const CURRENCIES = ["EUR", "RON"];
+const CURRENCIES = ["EUR", "RON", "USD"];
 const CHECKLIST_TYPES = ["pre_filming", "post_filming", "general"];
 const REMINDER_TYPES = ["deadline", "invoice", "meeting", "general"];
 
@@ -1312,4 +1456,42 @@ function setLang(lang) {
   if (!TRANSLATIONS[lang]) return;
   CURRENT_LANG = lang;
   localStorage.setItem("gdc_lang", lang);
+}
+
+// v2.0.0: label lookup for a pipeline stage/type key. Prefers a real
+// translation (status_<key>/type_<key> in TRANSLATIONS, RO/EN/ES) so the
+// 7 seeded stages and 8 seeded types keep showing localized text exactly
+// as before; falls back to this user's own `label` for anything they
+// renamed or added, which has no translation entry at all. t() itself
+// falls back to echoing the raw key when a translation is missing - that's
+// how "not found" is detected here.
+function stageLabel(key) {
+  const translated = t("status_" + key);
+  if (translated !== "status_" + key) return translated;
+  const def = STAGE_DEFS.find(s => s.key === key);
+  return def ? def.label : key;
+}
+
+function typeLabel(key) {
+  const translated = t("type_" + key);
+  if (translated !== "type_" + key) return translated;
+  const def = TYPE_DEFS.find(d => d.key === key);
+  return def ? def.label : key;
+}
+
+// Populates STAGE_DEFS/TYPE_DEFS/STATUS_ORDER/PROJECT_TYPES from this
+// user's own /api/meta - called once from requireAuth(), before any page
+// renders a status/type dropdown or the pipeline stepper.
+async function loadPipelineDefs() {
+  try {
+    const meta = await API.get("/api/meta");
+    STAGE_DEFS = meta.stages || [];
+    TYPE_DEFS = meta.project_types || [];
+    STATUS_ORDER = STAGE_DEFS.map(s => s.key);
+    PROJECT_TYPES = TYPE_DEFS.map(d => d.key);
+  } catch (e) {
+    // Leave the arrays empty rather than throwing - a page whose stepper/
+    // dropdowns come up blank is recoverable (reload); a hard crash on
+    // every page load because of one failed fetch is not.
+  }
 }
