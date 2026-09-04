@@ -2,6 +2,20 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## v2.0.2 (2026-09-04) — Ghid corectat + pagină de prezentare curățată
+
+### Fixed
+- Ghidul PDF (RO/EN/ES) menționa greșit 7 zile de probă gratuită — perioada
+  reală e 25 de zile, corectat peste tot (ghid + pagina de prezentare).
+- Pagina de prezentare nu mai conține niciun link sau text către GitHub —
+  butonul "Cod sursă", link-ul din footer și mențiunile text au fost
+  eliminate.
+
+### Added
+- Secțiune nouă în ghidul PDF (RO/EN/ES): cum pornești complet de la zero
+  (ștergerea datelor vechi) înainte de o instalare nouă, fără să afectezi
+  o actualizare normală (care păstrează datele intenționat).
+
 ## v2.0.1 (2026-09-04) — Integrare completă cu ecosistemul GDC Plugin Manager
 
 ### Added

@@ -896,6 +896,50 @@ Testat cu date reale prin curl: 2 echipamente pe o fișă, unul întors OK,
 celălalt rămas la `complete` → confirmat trecut pe `lost`, alertă
 generată.
 
+## v2.0.2 (2026-09-04) — Ghid corectat + zero referințe GitHub pe site
+
+**Cerință directă de la Cristi**: (1) instrucțiuni pentru cum ștergi baza
+de date veche înainte de o instalare complet nouă; (2) "regula master"
+încălcată — nu trebuie să existe niciun link/text către GitHub, nici pe
+pagina web, nici la descărcare de către clienți (Regula 20, extinsă acum
+explicit și la site, nu doar la self-updater).
+
+**Fix real găsit pe drum, în afara cererii inițiale**: ghidul PDF
+(RO/EN/ES) și pagina de prezentare menționau amândouă "7 zile de probă
+gratuită" — perioada reală, din cod (`backend/license_manager.py::
+TRIAL_DAYS`), e **25 de zile**. Corectat peste tot (6 apariții în ghid,
+8 pe site), verificat direct în PDF-ul generat și pe pagina live.
+
+**Audit complet al mențiunilor GitHub client-facing** (`grep -rn "github"`
+pe `docs/`, `frontend/`, comparat cu ce apare doar în cod/comentarii
+dezvoltator, care rămân neatinse):
+- Eliminat butonul "Cod sursă (GitHub)" din hero (`docs/index.html`).
+- Eliminat link-ul "GitHub" din footer.
+- Eliminat toate mențiunile text "disponibil pe GitHub"/"din ultima
+  versiune de pe GitHub"/"Descarcă aplicația de pe GitHub Releases" —
+  reformulate generic, fără să numească sursa.
+- `frontend/` (aplicația în sine): **deja conform** — self-updater-ul
+  (Regula 20) nu a avut niciodată text/link vizibil către GitHub, doar
+  comentarii de cod (developer-facing, niciodată afișate userului).
+- **NEATINS, semnalat explicit**: cele 4 butoane de descărcare
+  (`releases/latest/download/...`) rămân linkuri DIRECTE către fișierul
+  `.pkg`/`.exe` — nu randează o pagină GitHub (nu există "Cod sursă",
+  browsing de commit-uri, etc.), doar declanșează descărcarea fișierului.
+  Regula 9 din Partea 1 CERE explicit exact acest tipar
+  (`releases/latest/download/...`, HTTP 200 verificat). Nu le-am
+  schimbat fără confirmare explicită — ar necesita un proxy de
+  redirecționare (arhitectură nouă, nu doar un edit de text) dacă chiar
+  se dorește ascunderea domeniului github.com și la aceste 4 linkuri.
+- `README.md` (fișierul propriu al repo-ului GitHub) — NEATINS,
+  intenționat: e citit doar de cineva deja pe GitHub, nu de un client
+  care descarcă aplicația de pe `gordas.dev`.
+
+**Verificat**: PDF regenerat (`generate_guides.py` → `html_to_pdf.swift`
+→ `pypdf`, 27 pagini), conținut confirmat direct din fișier (25 zile
+prezent, 7 zile dispărut, FAQ nou prezent, în toate 3 limbile). Sincronizat
+în oglinda `gdc-plugin-manager-catalog-vendor` și verificat live pe
+`gordas.dev` (conținut real descărcat și verificat, nu presupus).
+
 ## v2.0.1 (2026-09-04) — F închis complet: revocare, preț dinamic, catalog
 
 Continuarea directă a secțiunii F de mai jos (v2.0.0) — după citirea
