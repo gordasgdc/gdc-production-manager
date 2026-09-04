@@ -9,6 +9,7 @@ instalarii, nu a unui user anume.
 from flask import Blueprint, request, jsonify
 
 import license_manager
+import pricing_checker
 
 license_bp = Blueprint("license", __name__)
 
@@ -16,6 +17,14 @@ license_bp = Blueprint("license", __name__)
 @license_bp.route("/api/license/status", methods=["GET"])
 def get_status():
     return jsonify(license_manager.status())
+
+
+@license_bp.route("/api/license/pricing", methods=["GET"])
+def get_pricing():
+    """Pret dinamic (Regula 27) - fail-open pe fallback-ul hardcodat, vezi
+    pricing_checker.py. Public, la fel ca /api/license/status - trebuie
+    sa functioneze pe ecranul de activare, inainte de orice cont local."""
+    return jsonify(pricing_checker.fetch_effective_price())
 
 
 @license_bp.route("/api/license/activate", methods=["POST"])

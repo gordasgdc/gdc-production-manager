@@ -2,6 +2,46 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## v2.0.1 (2026-09-04) — Integrare completă cu ecosistemul GDC Plugin Manager
+
+### Added
+- Profil + ID de mașină, deja vizibile în meniul lateral (v2.0.0), acum
+  complet integrate cu ecosistemul: verificare de revocare a licenței
+  (online, opțională — o licență deja activată nu se blochează niciodată
+  doar pentru că ești offline) și preț dinamic (fără să mai fie nevoie de
+  o actualizare a aplicației doar pentru o schimbare de preț/ofertă).
+- Aplicația e acum vizibilă cu preț propriu în catalogul GDC Plugin
+  Manager.
+
+## v2.0.0 (2026-09-04) — Arhitectură nativă & pipeline configurabil
+
+Versiune majoră: fereastră nativă (nu mai deschide browser-ul de sistem)
+și pipeline de producție complet configurabil, în loc de listele fixe de
+până acum.
+
+### Added
+- **Fereastră nativă** — aplicația nu mai deschide un tab de browser;
+  rulează într-o fereastră proprie, fără bară de adresă.
+- **Tipuri de proiect și etape configurabile** — adaugă, redenumește,
+  dezactivează sau reordonează-le liber din Setări. Linie de progres
+  interactivă (click direct pe orice etapă) pe fiecare proiect, cu istoric
+  complet, needitabil, al fiecărei avansări.
+- **Clienți**: tip explicit (persoană fizică / contact neoficial, pe lângă
+  firmele deja existente), CNP opțional, marcaj vizibil de atenționare
+  (client/proiect) cu notiță.
+- **Financiar**: rest de plată calculat automat pe fiecare proiect, monedă
+  USD adăugată, status „Avans" nou.
+- **Checklist-uri**: aplicate automat la crearea unui proiect, după tipul
+  lui; itemele pot fi legate de un echipament din inventar (autocompletare).
+- **Echipament**: status „Subînchiriat" nou; predarea/returnarea
+  înregistrează starea reală (OK / lipsă / avariat) — un echipament avariat
+  trece automat în mentenanță, unul lipsă e semnalat vizibil, în loc să
+  rămână blocat silențios „în teren".
+- **Buton „Deschide folderul"** lângă fiecare cale de fișiere (RAW/Montaj/
+  Export), pe lângă selectorul de directoare deja existent.
+- **Profil și ID de mașină vizibile direct în meniul lateral**, nu doar în
+  Setări.
+
 ## v1.2.4 (2026-08-26)
 
 ### Added

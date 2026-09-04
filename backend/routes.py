@@ -3,6 +3,7 @@ GDC Production Manager - API routes for clients, projects, templates, dashboard.
 """
 
 import os
+import re
 import sys
 import uuid
 import copy
@@ -14,8 +15,9 @@ from werkzeug.utils import secure_filename
 from models import (
     db, User, Client, Company, Project, WorkflowTemplate, Attachment, Course, DigitalProduct,
     ChecklistTemplate, Checklist, Reminder, Equipment, EquipmentCheckout,
+    ProjectTypeDef, ProjectStageDef, ProjectStageEvent,
     PROJECT_STATUSES, PROJECT_TYPES, PAYMENT_STATUSES, COURSE_STATUSES, PRODUCT_TYPES,
-    CURRENCIES, CHECKLIST_TYPES, REMINDER_TYPES, EQUIPMENT_STATUSES,
+    CURRENCIES, CHECKLIST_TYPES, REMINDER_TYPES, EQUIPMENT_STATUSES, CLIENT_KINDS,
 )
 from auth import login_required, current_user
 from config import ATTACHMENTS_DIR
@@ -38,10 +40,16 @@ def parse_date(value):
 @api_bp.route("/api/meta", methods=["GET"])
 @login_required
 def meta():
+    user = current_user()
     return jsonify(
         {
-            "statuses": PROJECT_STATUSES,
-            "project_types": PROJECT_TYPES,
+            # v2.0.0: "stages"/"project_types" are now this user's own
+            # editable/reorderable rows (see /api/project-stages,
+            # /api/project-types below) - key+label objects, not bare
+            # translation-key strings, since a custom entry the person adds
+            # has no entry in translations.js at all.
+            "stages": _ordered_stage_defs(user, active_only=True),
+            "project_types": _ordered_type_defs(user, active_only=True),
             "payment_statuses": PAYMENT_STATUSES,
             "course_statuses": COURSE_STATUSES,
             "product_types": PRODUCT_TYPES,
@@ -51,6 +59,196 @@ def meta():
             "equipment_statuses": EQUIPMENT_STATUSES,
         }
     )
+
+
+# ------------------------------------------- project types & stages (v2) ---
+# User-editable/reorderable nomenclatures, replacing the old hardcoded
+# PROJECT_TYPES/PROJECT_STATUSES constants (still kept in models.py as the
+# seed source - see seed.py::seed_default_pipeline_defs). `key` is
+# immutable once created (it's what's stored on Project rows and used in
+# CSS/translation lookups); only `label`/`order`/`is_active` can change.
+
+def _slugify_key(label: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", label.strip().lower()).strip("_")
+    return slug or uuid.uuid4().hex[:8]
+
+
+def _ordered_stage_defs(user, active_only=False):
+    q = ProjectStageDef.query.filter_by(user_id=user.id)
+    if active_only:
+        q = q.filter_by(is_active=True)
+    return [s.to_dict() for s in q.order_by(ProjectStageDef.order.asc()).all()]
+
+
+def _ordered_type_defs(user, active_only=False):
+    q = ProjectTypeDef.query.filter_by(user_id=user.id)
+    if active_only:
+        q = q.filter_by(is_active=True)
+    return [t.to_dict() for t in q.order_by(ProjectTypeDef.order.asc()).all()]
+
+
+def _valid_stage_keys(user):
+    keys = [s["key"] for s in _ordered_stage_defs(user, active_only=True)]
+    return keys or list(PROJECT_STATUSES)  # defensive: never block on an empty table
+
+
+def _valid_type_keys(user):
+    keys = [t["key"] for t in _ordered_type_defs(user, active_only=True)]
+    return keys or list(PROJECT_TYPES)
+
+
+def _record_stage_event(project, note=None):
+    """Inserts one immutable audit-trail row for the project's CURRENT
+    stage - called on creation and on every advance (next-step/jump).
+    Never call this to "fix" a past row - editing history defeats the
+    point (see ProjectStageEvent docstring in models.py)."""
+    db.session.add(ProjectStageEvent(
+        project_id=project.id,
+        stage_key=project.status,
+        note_snapshot=note if note is not None else (project.stage_notes or {}).get(project.status),
+    ))
+
+
+@api_bp.route("/api/project-types", methods=["GET"])
+@login_required
+def list_project_types():
+    return jsonify(_ordered_type_defs(current_user()))
+
+
+@api_bp.route("/api/project-types", methods=["POST"])
+@login_required
+def create_project_type():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    label = (data.get("label") or "").strip()
+    if not label:
+        return jsonify({"error": "label_required"}), 400
+
+    key = _slugify_key(label)
+    if ProjectTypeDef.query.filter_by(user_id=user.id, key=key).first():
+        return jsonify({"error": "key_exists"}), 409
+
+    max_order = db.session.query(db.func.max(ProjectTypeDef.order)).filter_by(user_id=user.id).scalar() or 0
+    entry = ProjectTypeDef(user_id=user.id, key=key, label=label, order=max_order + 1)
+    db.session.add(entry)
+    db.session.commit()
+    return jsonify(entry.to_dict()), 201
+
+
+@api_bp.route("/api/project-types/<int:type_id>", methods=["PUT"])
+@login_required
+def update_project_type(type_id):
+    user = current_user()
+    entry = ProjectTypeDef.query.filter_by(id=type_id, user_id=user.id).first()
+    if not entry:
+        return jsonify({"error": "not_found"}), 404
+    data = request.get_json(silent=True) or {}
+    if "label" in data and data["label"].strip():
+        entry.label = data["label"].strip()
+    if "is_active" in data:
+        entry.is_active = bool(data["is_active"])
+    db.session.commit()
+    return jsonify(entry.to_dict())
+
+
+@api_bp.route("/api/project-types/<int:type_id>", methods=["DELETE"])
+@login_required
+def delete_project_type(type_id):
+    user = current_user()
+    entry = ProjectTypeDef.query.filter_by(id=type_id, user_id=user.id).first()
+    if not entry:
+        return jsonify({"error": "not_found"}), 404
+    in_use = Project.query.filter_by(user_id=user.id, project_type=entry.key).count()
+    if in_use:
+        return jsonify({"error": "in_use", "count": in_use}), 409
+    db.session.delete(entry)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/api/project-types/reorder", methods=["POST"])
+@login_required
+def reorder_project_types():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    ordered_ids = data.get("order") or []
+    entries = {e.id: e for e in ProjectTypeDef.query.filter_by(user_id=user.id).all()}
+    for i, entry_id in enumerate(ordered_ids):
+        if entry_id in entries:
+            entries[entry_id].order = i
+    db.session.commit()
+    return jsonify(_ordered_type_defs(user))
+
+
+@api_bp.route("/api/project-stages", methods=["GET"])
+@login_required
+def list_project_stages():
+    return jsonify(_ordered_stage_defs(current_user()))
+
+
+@api_bp.route("/api/project-stages", methods=["POST"])
+@login_required
+def create_project_stage():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    label = (data.get("label") or "").strip()
+    if not label:
+        return jsonify({"error": "label_required"}), 400
+
+    key = _slugify_key(label)
+    if ProjectStageDef.query.filter_by(user_id=user.id, key=key).first():
+        return jsonify({"error": "key_exists"}), 409
+
+    max_order = db.session.query(db.func.max(ProjectStageDef.order)).filter_by(user_id=user.id).scalar() or 0
+    entry = ProjectStageDef(user_id=user.id, key=key, label=label, order=max_order + 1)
+    db.session.add(entry)
+    db.session.commit()
+    return jsonify(entry.to_dict()), 201
+
+
+@api_bp.route("/api/project-stages/<int:stage_id>", methods=["PUT"])
+@login_required
+def update_project_stage(stage_id):
+    user = current_user()
+    entry = ProjectStageDef.query.filter_by(id=stage_id, user_id=user.id).first()
+    if not entry:
+        return jsonify({"error": "not_found"}), 404
+    data = request.get_json(silent=True) or {}
+    if "label" in data and data["label"].strip():
+        entry.label = data["label"].strip()
+    if "is_active" in data:
+        entry.is_active = bool(data["is_active"])
+    db.session.commit()
+    return jsonify(entry.to_dict())
+
+
+@api_bp.route("/api/project-stages/<int:stage_id>", methods=["DELETE"])
+@login_required
+def delete_project_stage(stage_id):
+    user = current_user()
+    entry = ProjectStageDef.query.filter_by(id=stage_id, user_id=user.id).first()
+    if not entry:
+        return jsonify({"error": "not_found"}), 404
+    in_use = Project.query.filter_by(user_id=user.id, status=entry.key).count()
+    if in_use:
+        return jsonify({"error": "in_use", "count": in_use}), 409
+    db.session.delete(entry)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/api/project-stages/reorder", methods=["POST"])
+@login_required
+def reorder_project_stages():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    ordered_ids = data.get("order") or []
+    entries = {e.id: e for e in ProjectStageDef.query.filter_by(user_id=user.id).all()}
+    for i, entry_id in enumerate(ordered_ids):
+        if entry_id in entries:
+            entries[entry_id].order = i
+    db.session.commit()
+    return jsonify(_ordered_stage_defs(user))
 
 
 # --------------------------------------------------------- folder picker ---
@@ -97,6 +295,30 @@ def pick_folder():
         return jsonify({"path": None})
     except Exception as e:
         return jsonify({"error": "picker_failed", "detail": str(e)}), 500
+
+
+@api_bp.route("/api/open-folder", methods=["POST"])
+@login_required
+def open_folder():
+    """Reveals a path (path_raw/path_edit/path_export) in the OS's own
+    file browser - the "Deschide folderul" button next to each path
+    field. Mirrors pick_folder()'s platform split exactly."""
+    data = request.get_json(silent=True) or {}
+    path = (data.get("path") or "").strip()
+    if not path:
+        return jsonify({"error": "path_required"}), 400
+    if not os.path.isdir(path):
+        return jsonify({"error": "not_found"}), 404
+    try:
+        if sys.platform == "darwin":
+            subprocess.run(["open", path], timeout=10)
+        elif sys.platform.startswith("win"):
+            subprocess.run(["explorer", path], timeout=10)
+        else:
+            return jsonify({"error": "unsupported_platform"}), 501
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": "open_failed", "detail": str(e)}), 500
 
 
 # ------------------------------------------------------------ companies ----
@@ -262,6 +484,10 @@ def create_client():
     if not name:
         return jsonify({"error": "name_required"}), 400
 
+    kind = data.get("kind") or "individual"
+    if kind not in CLIENT_KINDS:
+        return jsonify({"error": "invalid_kind"}), 400
+
     client = Client(
         user_id=user.id,
         name=name,
@@ -271,6 +497,10 @@ def create_client():
         email=data.get("email"),
         phone=data.get("phone"),
         notes=data.get("notes"),
+        kind=kind,
+        fiscal_id=data.get("fiscal_id"),
+        is_flagged=bool(data.get("is_flagged")),
+        flag_note=data.get("flag_note"),
     )
     db.session.add(client)
     db.session.commit()
@@ -286,9 +516,15 @@ def update_client(client_id):
         return jsonify({"error": "not_found"}), 404
 
     data = request.get_json(silent=True) or {}
-    for field in ("name", "company", "company_id", "role", "email", "phone", "notes"):
+    if "kind" in data and data["kind"] not in CLIENT_KINDS:
+        return jsonify({"error": "invalid_kind"}), 400
+
+    for field in ("name", "company", "company_id", "role", "email", "phone", "notes",
+                  "kind", "fiscal_id", "flag_note"):
         if field in data:
             setattr(client, field, data[field] or None if field == "company_id" else data[field])
+    if "is_flagged" in data:
+        client.is_flagged = bool(data["is_flagged"])
     db.session.commit()
     return jsonify(client.to_dict())
 
@@ -391,11 +627,20 @@ def create_project():
     if not title:
         return jsonify({"error": "title_required"}), 400
 
+    valid_types = _valid_type_keys(user)
+    valid_stages = _valid_stage_keys(user)
+    project_type = data.get("project_type") or valid_types[0]
+    status = data.get("status") or valid_stages[0]
+    if project_type not in valid_types:
+        return jsonify({"error": "invalid_project_type"}), 400
+    if status not in valid_stages:
+        return jsonify({"error": "invalid_status"}), 400
+
     project = Project(
         user_id=user.id,
         title=title,
-        project_type=data.get("project_type") or "other",
-        status=data.get("status") or "planning",
+        project_type=project_type,
+        status=status,
         client_id=data.get("client_id") or None,
         template_id=data.get("template_id") or None,
         shoot_location=data.get("shoot_location"),
@@ -410,8 +655,31 @@ def create_project():
         currency=data.get("currency") if data.get("currency") in CURRENCIES else user.currency,
         notes=data.get("notes"),
         stage_notes={},
+        is_flagged=bool(data.get("is_flagged")),
+        flag_note=data.get("flag_note"),
     )
     db.session.add(project)
+    db.session.commit()
+    _record_stage_event(project)  # first audit-trail row - the project's starting stage
+
+    # v2.0.0: auto-apply every checklist template scoped to this project's
+    # type - a template with no project_type (generic) stays manual-only,
+    # picked explicitly later (see create_checklist).
+    matching_templates = ChecklistTemplate.query.filter_by(
+        user_id=user.id, project_type=project.project_type
+    ).all()
+    for tpl in matching_templates:
+        db.session.add(Checklist(
+            project_id=project.id,
+            template_id=tpl.id,
+            name=tpl.name,
+            checklist_type=tpl.checklist_type,
+            items=[
+                {"id": uuid.uuid4().hex[:8], "text": str(t).strip(), "done": False}
+                for t in (tpl.items or []) if str(t).strip()
+            ],
+        ))
+
     db.session.commit()
     return jsonify(project.to_dict()), 201
 
@@ -425,14 +693,23 @@ def update_project(project_id):
         return jsonify({"error": "not_found"}), 404
 
     data = request.get_json(silent=True) or {}
+
+    if "project_type" in data and data["project_type"] not in _valid_type_keys(user):
+        return jsonify({"error": "invalid_project_type"}), 400
+    if "status" in data and data["status"] not in _valid_stage_keys(user):
+        return jsonify({"error": "invalid_status"}), 400
+
+    old_status = project.status
     simple_fields = (
         "title", "project_type", "status", "client_id", "template_id",
         "shoot_location", "path_raw", "path_edit", "path_export",
-        "budget_total", "amount_paid", "payment_status", "notes",
+        "budget_total", "amount_paid", "payment_status", "notes", "flag_note",
     )
     for field in simple_fields:
         if field in data:
             setattr(project, field, data[field])
+    if "is_flagged" in data:
+        project.is_flagged = bool(data["is_flagged"])
 
     if "currency" in data and data["currency"] in CURRENCIES:
         project.currency = data["currency"]
@@ -443,6 +720,11 @@ def update_project(project_id):
         project.delivery_date = parse_date(data.get("delivery_date"))
 
     project.updated_at = datetime.utcnow()
+    # The edit form's status dropdown is a second path (besides next-step/
+    # jump-to-stage) that can move a project between stages - it must
+    # produce the same audit-trail row, or the history would have gaps.
+    if project.status != old_status:
+        _record_stage_event(project)
     db.session.commit()
     return jsonify(project.to_dict())
 
@@ -450,31 +732,73 @@ def update_project(project_id):
 @api_bp.route("/api/projects/<int:project_id>/next-step", methods=["POST"])
 @login_required
 def next_step(project_id):
-    """Advances the project to the next stage in the pipeline. No-op (200,
-    unchanged) if it's already at the last stage."""
+    """Advances the project to the next stage in the pipeline (per this
+    user's own ordered ProjectStageDef rows, not the old hardcoded list).
+    No-op (200, unchanged) if it's already at the last active stage."""
     user = current_user()
     project = Project.query.filter_by(id=project_id, user_id=user.id).first()
     if not project:
         return jsonify({"error": "not_found"}), 404
 
+    stages = _valid_stage_keys(user)
     try:
-        idx = PROJECT_STATUSES.index(project.status)
+        idx = stages.index(project.status)
     except ValueError:
-        idx = 0
+        idx = -1  # current status fell off the active list (e.g. deactivated) - treat as "before the first"
 
-    if idx < len(PROJECT_STATUSES) - 1:
-        project.status = PROJECT_STATUSES[idx + 1]
+    if idx < len(stages) - 1:
+        project.status = stages[idx + 1]
         project.updated_at = datetime.utcnow()
+        _record_stage_event(project)
         db.session.commit()
 
     return jsonify(project.to_dict())
+
+
+@api_bp.route("/api/projects/<int:project_id>/jump-to-stage", methods=["POST"])
+@login_required
+def jump_to_stage(project_id):
+    """Direct stepper-click navigation - moves the project to ANY stage
+    (not just the next one), forward or backward. Same audit trail as
+    next-step: a new immutable row, never a rewrite of an old one."""
+    user = current_user()
+    project = Project.query.filter_by(id=project_id, user_id=user.id).first()
+    if not project:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    stage = data.get("stage")
+    if stage not in _valid_stage_keys(user):
+        return jsonify({"error": "invalid_status"}), 400
+
+    if stage != project.status:
+        project.status = stage
+        project.updated_at = datetime.utcnow()
+        _record_stage_event(project)
+        db.session.commit()
+
+    return jsonify(project.to_dict())
+
+
+@api_bp.route("/api/projects/<int:project_id>/stage-history", methods=["GET"])
+@login_required
+def stage_history(project_id):
+    """Read-only audit trail - every past advance, oldest first, each one
+    frozen at the moment it happened (see ProjectStageEvent)."""
+    user = current_user()
+    project = Project.query.filter_by(id=project_id, user_id=user.id).first()
+    if not project:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify([e.to_dict() for e in project.stage_events])
 
 
 @api_bp.route("/api/projects/<int:project_id>/stage-notes", methods=["PUT"])
 @login_required
 def update_stage_notes(project_id):
     """Updates the note for a single pipeline stage without touching the
-    others, e.g. {"status": "editing", "note": "..."}."""
+    others, e.g. {"status": "editing", "note": "..."}. This only edits the
+    LIVE note shown on the project - it never rewrites a past
+    ProjectStageEvent snapshot, by design."""
     user = current_user()
     project = Project.query.filter_by(id=project_id, user_id=user.id).first()
     if not project:
@@ -483,7 +807,7 @@ def update_stage_notes(project_id):
     data = request.get_json(silent=True) or {}
     stage = data.get("status")
     note = data.get("note", "")
-    if stage not in PROJECT_STATUSES:
+    if stage not in _valid_stage_keys(user):
         return jsonify({"error": "invalid_status"}), 400
 
     stage_notes = dict(project.stage_notes or {})
@@ -655,8 +979,11 @@ def create_checkout():
 @api_bp.route("/api/checkouts/<int:checkout_id>/return-item", methods=["POST"])
 @login_required
 def return_checkout_item(checkout_id):
-    """Checks one piece of equipment back in - the item goes straight
-    back to `available` (not waiting for the rest of the sheet)."""
+    """Checks one piece of equipment back in. `condition` (v2.0.0) records
+    the real outcome - "ok" (default) sends it straight back to
+    `available`; "damaged" sends it to `maintenance`; "missing" flips it
+    to `lost` (visible everywhere, not silently stuck on `checked_out` -
+    the actual "alertă dacă lipsește/e avariat" the UI surfaces)."""
     user = current_user()
     checkout = EquipmentCheckout.query.filter_by(id=checkout_id, user_id=user.id).first()
     if not checkout:
@@ -664,6 +991,9 @@ def return_checkout_item(checkout_id):
 
     data = request.get_json(silent=True) or {}
     equipment_id = data.get("equipment_id")
+    condition = data.get("condition") or "ok"
+    if condition not in ("ok", "missing", "damaged"):
+        return jsonify({"error": "invalid_condition"}), 400
 
     # deepcopy before mutating - a plain reference reassigned to itself
     # doesn't register as a change on a JSON column (same convention as
@@ -673,6 +1003,7 @@ def return_checkout_item(checkout_id):
     for it in items:
         if it.get("equipment_id") == equipment_id:
             it["returned"] = True
+            it["condition"] = condition
             found = True
             break
     if not found:
@@ -680,8 +1011,13 @@ def return_checkout_item(checkout_id):
 
     checkout.items = items
     equipment = Equipment.query.filter_by(id=equipment_id, user_id=user.id).first()
-    if equipment and equipment.status == "checked_out":
-        equipment.status = "available"
+    if equipment:
+        if condition == "damaged":
+            equipment.status = "maintenance"
+        elif condition == "missing":
+            equipment.status = "lost"
+        elif equipment.status == "checked_out":
+            equipment.status = "available"
 
     if all(it.get("returned") for it in items):
         checkout.returned_at = datetime.utcnow()
@@ -693,16 +1029,35 @@ def return_checkout_item(checkout_id):
 @api_bp.route("/api/checkouts/<int:checkout_id>/complete", methods=["POST"])
 @login_required
 def complete_checkout(checkout_id):
-    """Force-closes a sheet even if some items were never checked back
-    in (e.g. lost gear, logged separately) - marks it returned so it
-    drops out of the "active" list."""
+    """Force-closes a sheet even if some items were never checked back in.
+    v2.0.0 fix (real bug, found in this audit): anything still outstanding
+    is now marked `missing` and its Equipment flips to `lost` - previously
+    it stayed silently on `checked_out` forever, with no alert at all."""
     user = current_user()
     checkout = EquipmentCheckout.query.filter_by(id=checkout_id, user_id=user.id).first()
     if not checkout:
         return jsonify({"error": "not_found"}), 404
+
+    items = copy.deepcopy(checkout.items or [])
+    newly_missing_ids = []
+    for it in items:
+        if not it.get("returned"):
+            it["returned"] = True
+            it["condition"] = "missing"
+            newly_missing_ids.append(it.get("equipment_id"))
+    checkout.items = items
+
+    if newly_missing_ids:
+        for equipment in Equipment.query.filter(
+            Equipment.id.in_(newly_missing_ids), Equipment.user_id == user.id
+        ).all():
+            equipment.status = "lost"
+
     checkout.returned_at = datetime.utcnow()
     db.session.commit()
-    return jsonify(checkout.to_dict())
+    result = checkout.to_dict()
+    result["newly_missing_count"] = len(newly_missing_ids)
+    return jsonify(result)
 
 
 @api_bp.route("/api/checkouts/<int:checkout_id>", methods=["DELETE"])
@@ -1477,8 +1832,16 @@ def add_checklist_item(checklist_id):
     if not text:
         return jsonify({"error": "text_required"}), 400
 
+    # v2.0.0: an item can optionally reference one Equipment row (the
+    # "autocompletare din inventar" pick) - purely a display/lookup link,
+    # so a since-deleted piece of gear just leaves a plain text item.
+    equipment_id = data.get("equipment_id")
+    if equipment_id is not None:
+        if not Equipment.query.filter_by(id=equipment_id, user_id=user.id).first():
+            return jsonify({"error": "equipment_not_found"}), 404
+
     items = copy.deepcopy(checklist.items or [])
-    items.append({"id": uuid.uuid4().hex[:8], "text": text, "done": False})
+    items.append({"id": uuid.uuid4().hex[:8], "text": text, "done": False, "equipment_id": equipment_id})
     checklist.items = items
     checklist.updated_at = datetime.utcnow()
     db.session.commit()

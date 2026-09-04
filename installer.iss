@@ -24,7 +24,7 @@
 ; NU compila pe macOS/CI Mac — Inno Setup ruleaza doar pe Windows.
 
 #define MyAppName "GDC Production Manager"
-#define MyAppVersion "1.2.5"
+#define MyAppVersion "2.0.1"
 #define MyAppPublisher "Cristi Gordas"
 #define MyAppExeName "GDCProductionManager.exe"
 #define MyAppURL "https://gordas.dev/gdc-production-manager"

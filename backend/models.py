@@ -2,7 +2,7 @@
 GDC Production Manager - Database models
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -32,19 +32,33 @@ PROJECT_TYPES = [
     "other",
 ]
 
-PAYMENT_STATUSES = ["unpaid", "partial", "paid"]
+# v2.0.0: "advance" added (Avans - a deposit before work starts, distinct
+# from "partial" which implies work already delivered). "overdue" is
+# intentionally NOT a stored value here - it's a computed overlay
+# (Project.to_dict()'s `is_overdue`) on top of whichever of these 4 is
+# actually stored, since "overdue" depends on today's date, not a choice
+# the person makes.
+PAYMENT_STATUSES = ["unpaid", "advance", "partial", "paid"]
 
 COURSE_STATUSES = ["scheduled", "confirmed", "completed", "cancelled"]
 COURSE_LOCATIONS = ["online", "in_person"]
 
 PRODUCT_TYPES = ["dctl", "powergrade", "lut", "preset", "template", "other"]
 
-CURRENCIES = ["EUR", "RON"]
+CURRENCIES = ["EUR", "RON", "USD"]
 
 CHECKLIST_TYPES = ["pre_filming", "post_filming", "general"]
 REMINDER_TYPES = ["deadline", "invoice", "meeting", "general"]
 
-EQUIPMENT_STATUSES = ["available", "checked_out", "maintenance", "lost"]
+# v2.0.0: "subrented" - gear rented out to a third party (still physically
+# out, but for a different reason than a normal in-house checkout).
+EQUIPMENT_STATUSES = ["available", "checked_out", "maintenance", "subrented", "lost"]
+
+# v2.0.0: Company (juridic, has CUI) already exists as its own entity -
+# these are the two kinds a standalone Client row (not linked to a
+# Company) can be: a real individual (may still need a fiscal_id/CNP for
+# invoicing) vs. a loose, unofficial contact with no fiscal weight.
+CLIENT_KINDS = ["individual", "informal"]
 
 
 def _worst_payment_status(projects):
@@ -121,6 +135,12 @@ class User(db.Model):
     )
     equipment_checkouts = db.relationship(
         "EquipmentCheckout", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    project_type_defs = db.relationship(
+        "ProjectTypeDef", backref="owner", lazy=True, cascade="all, delete-orphan"
+    )
+    project_stage_defs = db.relationship(
+        "ProjectStageDef", backref="owner", lazy=True, cascade="all, delete-orphan"
     )
 
     def set_password(self, password: str) -> None:
@@ -230,6 +250,17 @@ class Client(db.Model):
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # v2.0.0: "individual" (real person, may carry a fiscal_id/CNP for
+    # invoicing) vs "informal" (loose contact, no fiscal weight) - a
+    # Client linked to a Company (company_id set) represents that firm's
+    # employee, independent of this field. is_flagged/flag_note is a
+    # persistent, visible warning badge - distinct from `notes`, which is
+    # free text nobody is prompted to read.
+    kind = db.Column(db.String(20), nullable=False, default="individual")
+    fiscal_id = db.Column(db.String(50), nullable=True)
+    is_flagged = db.Column(db.Boolean, nullable=False, default=False)
+    flag_note = db.Column(db.Text, nullable=True)
+
     projects = db.relationship("Project", backref="client", lazy=True)
     courses = db.relationship("Course", backref="client", lazy=True)
 
@@ -244,10 +275,70 @@ class Client(db.Model):
             "email": self.email,
             "phone": self.phone,
             "notes": self.notes,
+            "kind": self.kind,
+            "fiscal_id": self.fiscal_id,
+            "is_flagged": self.is_flagged,
+            "flag_note": self.flag_note,
             "project_count": len(self.projects),
             "course_count": len(self.courses),
             "payment_status": _worst_payment_status(self.projects),
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ProjectTypeDef(db.Model):
+    """v2.0.0: user-editable/reorderable replacement for the hardcoded
+    PROJECT_TYPES list above. Seeded once per user from that list (see
+    seed.py::seed_default_pipeline_defs) so existing projects' `project_type`
+    strings keep matching unchanged - the constant stays as the seed
+    source and the ultimate fallback, never removed."""
+
+    __tablename__ = "project_type_defs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    key = db.Column(db.String(40), nullable=False)
+    label = db.Column(db.String(80), nullable=False)
+    order = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "key", name="uq_project_type_user_key"),)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "key": self.key,
+            "label": self.label,
+            "order": self.order,
+            "is_active": self.is_active,
+        }
+
+
+class ProjectStageDef(db.Model):
+    """v2.0.0: user-editable/reorderable replacement for the hardcoded
+    PROJECT_STATUSES list above - `order` drives both validation (what
+    "next"/"jump" can target) and the stepper's left-to-right sequence."""
+
+    __tablename__ = "project_stage_defs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    key = db.Column(db.String(40), nullable=False)
+    label = db.Column(db.String(80), nullable=False)
+    order = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "key", name="uq_project_stage_user_key"),)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "key": self.key,
+            "label": self.label,
+            "order": self.order,
+            "is_active": self.is_active,
         }
 
 
@@ -335,6 +426,10 @@ class Project(db.Model):
     # One free-text note per pipeline stage, e.g. {"planning": "...", "filming": "...", ...}
     stage_notes = db.Column(db.JSON, nullable=True, default=dict)
 
+    # v2.0.0: persistent, visible warning badge - separate from `notes`.
+    is_flagged = db.Column(db.Boolean, nullable=False, default=False)
+    flag_note = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -370,9 +465,20 @@ class Project(db.Model):
             "budget_total": self.budget_total,
             "amount_paid": self.amount_paid,
             "payment_status": self.payment_status,
+            # v2.0.0: "rest de plată" - was only ever computed aggregated,
+            # per-currency, in dashboard(); now available directly on every
+            # project, since the UI needs it per-project too.
+            "balance_due": round((self.budget_total or 0) - (self.amount_paid or 0), 2),
+            # Computed, not stored (see PAYMENT_STATUSES comment) - a
+            # delivery date in the past on a project that isn't fully paid.
+            "is_overdue": bool(
+                self.delivery_date and self.delivery_date < date.today() and self.payment_status != "paid"
+            ),
             "currency": self.currency,
             "notes": self.notes,
             "stage_notes": self.stage_notes or {},
+            "is_flagged": self.is_flagged,
+            "flag_note": self.flag_note,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "attachment_count": len(self.attachments),
@@ -383,6 +489,40 @@ class Project(db.Model):
         if include_checklists:
             data["checklists"] = [cl.to_dict() for cl in self.checklists]
         return data
+
+
+class ProjectStageEvent(db.Model):
+    """v2.0.0: read-only audit-trail row, INSERTED (never updated) every
+    time a project advances to a stage - via next-step or a direct
+    stepper-click jump. `note_snapshot` freezes whatever that stage's
+    note said at the moment of entry; editing the note later (see
+    Project.stage_notes) never touches old rows here - that's the whole
+    point of a real history vs. the old single mutable status field."""
+
+    __tablename__ = "project_stage_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
+
+    stage_key = db.Column(db.String(40), nullable=False)
+    note_snapshot = db.Column(db.Text, nullable=True)
+    entered_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    project = db.relationship(
+        "Project",
+        backref=db.backref(
+            "stage_events", lazy=True, cascade="all, delete-orphan",
+            order_by="ProjectStageEvent.entered_at",
+        ),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "stage_key": self.stage_key,
+            "note_snapshot": self.note_snapshot,
+            "entered_at": self.entered_at.isoformat() if self.entered_at else None,
+        }
 
 
 class Course(db.Model):
@@ -520,13 +660,28 @@ class Checklist(db.Model):
     def to_dict(self) -> dict:
         items = self.items or []
         done_count = sum(1 for it in items if it.get("done"))
+        # v2.0.0: enrich each item with its linked equipment's name/status,
+        # same pattern as EquipmentCheckout.to_dict() below - a deleted
+        # piece of gear just leaves equipment_name=None, not a crash.
+        equipment_ids = [it.get("equipment_id") for it in items if it.get("equipment_id")]
+        equipment_by_id = (
+            {e.id: e for e in Equipment.query.filter(Equipment.id.in_(equipment_ids)).all()}
+            if equipment_ids else {}
+        )
+        enriched_items = [
+            {
+                **it,
+                "equipment_name": equipment_by_id[it["equipment_id"]].name if it.get("equipment_id") in equipment_by_id else None,
+            }
+            for it in items
+        ]
         return {
             "id": self.id,
             "project_id": self.project_id,
             "template_id": self.template_id,
             "name": self.name,
             "checklist_type": self.checklist_type,
-            "items": items,
+            "items": enriched_items,
             "done_count": done_count,
             "total_count": len(items),
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -630,6 +785,9 @@ class EquipmentCheckout(db.Model):
                 "equipment_name": equipment_by_id[it["equipment_id"]].name
                 if it.get("equipment_id") in equipment_by_id else None,
                 "returned": bool(it.get("returned")),
+                # v2.0.0: check-in outcome - "ok"/"missing"/"damaged", or
+                # None for an item that hasn't been checked back in yet.
+                "condition": it.get("condition"),
             }
             for it in items
         ]

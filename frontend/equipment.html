@@ -118,7 +118,7 @@
 
   function openEquipmentModal(id) {
     const e = id ? ALL_EQUIPMENT.find(x => x.id === id) : null;
-    const statusOptions = ["available", "checked_out", "maintenance", "lost"]
+    const statusOptions = ["available", "checked_out", "maintenance", "subrented", "lost"]
       .map(s => `<option value="${s}" ${e && e.status === s ? "selected" : ""}>${t("eq_" + s)}</option>`).join("");
 
     document.getElementById("modal-root").innerHTML = `
@@ -256,11 +256,20 @@
     const c = ALL_CHECKOUTS.find(x => x.id === id);
     if (!c) return;
 
+    // v2.0.0: an unreturned item gets 3 explicit check-in actions instead
+    // of a single checkbox - a plain "done" toggle can't express the
+    // actual outcome (see return_checkout_item's `condition`).
     const itemsHtml = c.items.map(it => `
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; padding:6px 0;">
-        <input type="checkbox" data-return-item="${it.equipment_id}" ${it.returned ? "checked disabled" : ""} style="width:auto;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; padding:6px 0;">
         <span style="${it.returned ? "text-decoration:line-through; color:var(--text-faint);" : ""}">${escapeHtml(it.equipment_name || "—")}</span>
-      </label>
+        ${it.returned
+          ? `<span class="checkin-result ${it.condition || "ok"}">${t("eq_condition_" + (it.condition || "ok"))}</span>`
+          : `<div class="checkin-actions">
+              <button type="button" class="checkin-btn ok" data-return-item="${it.equipment_id}:ok">${t("checkout_mark_ok")}</button>
+              <button type="button" class="checkin-btn missing" data-return-item="${it.equipment_id}:missing">${t("checkout_mark_missing")}</button>
+              <button type="button" class="checkin-btn damaged" data-return-item="${it.equipment_id}:damaged">${t("checkout_mark_damaged")}</button>
+            </div>`}
+      </div>
     `).join("");
 
     document.getElementById("modal-root").innerHTML = `
@@ -291,10 +300,16 @@
     document.getElementById("modal-backdrop").addEventListener("click", (ev) => {
       if (ev.target.id === "modal-backdrop") close();
     });
-    document.querySelectorAll("[data-return-item]").forEach(cb => {
-      cb.addEventListener("change", async () => {
+    document.querySelectorAll("[data-return-item]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const [equipmentId, condition] = btn.dataset.returnItem.split(":");
         try {
-          await API.post(`/api/checkouts/${id}/return-item`, { equipment_id: Number(cb.dataset.returnItem) });
+          await API.post(`/api/checkouts/${id}/return-item`, { equipment_id: Number(equipmentId), condition });
+          if (condition === "missing") {
+            showToast(t("checkin_missing_alert"), "error");
+          } else if (condition === "damaged") {
+            showToast(t("checkin_damaged_alert"), "error");
+          }
           await loadData();
           close();
           openCheckoutDetailModal(id);
@@ -307,8 +322,12 @@
     if (completeBtn) {
       completeBtn.addEventListener("click", async () => {
         try {
-          await API.post(`/api/checkouts/${id}/complete`);
-          showToast(t("saved"));
+          const result = await API.post(`/api/checkouts/${id}/complete`);
+          if (result.newly_missing_count) {
+            showToast(tf("checkout_newly_missing_alert", { count: result.newly_missing_count }), "error");
+          } else {
+            showToast(t("saved"));
+          }
           close();
           await loadData();
         } catch (err) {

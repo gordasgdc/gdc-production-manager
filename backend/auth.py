@@ -11,8 +11,10 @@ import secrets
 from functools import wraps
 from flask import Blueprint, request, jsonify, session
 
-from models import db, User
-from seed import seed_default_checklist_templates
+from models import db, User, CURRENCIES
+from seed import seed_default_checklist_templates, seed_default_pipeline_defs
+import analytics_client
+import machine_id
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -79,6 +81,8 @@ def register():
     db.session.commit()
 
     seed_default_checklist_templates(user)
+    seed_default_pipeline_defs(user)
+    analytics_client.register_device(machine_id.get_machine_id_display(), display_name)
 
     session["user_id"] = user.id
     # recovery_code apare AICI o singura data - nu e stocat in clar
@@ -139,6 +143,7 @@ def login():
         return jsonify({"error": "invalid_credentials"}), 401
 
     session["user_id"] = user.id
+    analytics_client.register_device(machine_id.get_machine_id_display(), user.display_name or user.username)
     return jsonify({"user": user.to_dict()})
 
 
@@ -179,7 +184,7 @@ def set_theme():
 def set_currency():
     data = request.get_json(silent=True) or {}
     currency = data.get("currency")
-    if currency not in ("EUR", "RON"):
+    if currency not in CURRENCIES:
         return jsonify({"error": "invalid_currency"}), 400
     user = current_user()
     user.currency = currency

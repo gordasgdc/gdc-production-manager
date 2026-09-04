@@ -93,8 +93,8 @@
     list.innerHTML = items.map(c => `
       <div class="row-card row-card-clickable" style="grid-template-columns: 1.6fr 1fr 1fr auto;" data-preview="${c.id}">
         <div>
-          <div class="row-title">${escapeHtml(c.name)}</div>
-          <div class="row-sub">${c.company_name ? escapeHtml(c.company_name) : (c.company ? escapeHtml(c.company) : "")}${c.role ? " · " + escapeHtml(c.role) : ""}</div>
+          <div class="row-title">${escapeHtml(c.name)} ${flagBadgeHtml(c.is_flagged)}</div>
+          <div class="row-sub">${c.company_name ? escapeHtml(c.company_name) : (c.company ? escapeHtml(c.company) : t("client_kind_" + c.kind))}${c.role ? " · " + escapeHtml(c.role) : ""}</div>
         </div>
         <div class="row-meta">${c.email ? escapeHtml(c.email) : ""}</div>
         <div class="row-meta" style="display:flex; align-items:center; gap:8px;">
@@ -126,15 +126,18 @@
       <div class="modal-backdrop" id="preview-backdrop">
         <div class="modal" style="max-width:460px;">
           <div class="modal-header">
-            <h3>${escapeHtml(c.name)}</h3>
+            <h3>${escapeHtml(c.name)} ${flagBadgeHtml(c.is_flagged)}</h3>
             <button class="modal-close" id="preview-close">✕</button>
           </div>
           <div class="preview-body">
+            <div class="preview-row"><span class="row-sub">${t("client_kind_" + c.kind)}</span></div>
             ${c.company_name ? `<div class="preview-row"><strong>${t("field_company")}:</strong> ${escapeHtml(c.company_name)}</div>` : (c.company ? `<div class="preview-row"><strong>${t("field_company")}:</strong> ${escapeHtml(c.company)}</div>` : "")}
             ${c.role ? `<div class="preview-row"><strong>${t("field_role")}:</strong> ${escapeHtml(c.role)}</div>` : ""}
+            ${c.fiscal_id ? `<div class="preview-row"><strong>${t("field_fiscal_id")}:</strong> ${escapeHtml(c.fiscal_id)}</div>` : ""}
             ${c.email ? `<div class="preview-row"><strong>${t("field_email")}:</strong> <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></div>` : ""}
             ${c.phone ? `<div class="preview-row"><strong>${t("field_phone")}:</strong> <a href="tel:${escapeHtml(c.phone)}">${escapeHtml(c.phone)}</a></div>` : ""}
             <div class="preview-row mono">${c.project_count} ${c.project_count === 1 ? "proiect" : "proiecte"} ${payStatusPillHtml(c.payment_status)}</div>
+            ${c.flag_note ? `<div class="preview-row"><strong>${t("flag_badge")}:</strong> ${escapeHtml(c.flag_note)}</div>` : ""}
             ${c.notes ? `<div class="preview-row"><strong>${t("field_notes")}:</strong> ${escapeHtml(c.notes)}</div>` : ""}
           </div>
           <div class="modal-actions">
@@ -176,6 +179,19 @@
             </div>
             <div class="field-row">
               <div class="field">
+                <label>${t("field_client_kind")}</label>
+                <select id="f-kind">
+                  <option value="individual" ${!c || c.kind === "individual" ? "selected" : ""}>${t("client_kind_individual")}</option>
+                  <option value="informal" ${c && c.kind === "informal" ? "selected" : ""}>${t("client_kind_informal")}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>${t("field_fiscal_id")}</label>
+                <input type="text" id="f-fiscal-id" value="${c && c.fiscal_id ? escapeHtml(c.fiscal_id) : ""}">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
                 <label>${t("field_company")}</label>
                 <select id="f-company-id">${companyOptions}</select>
               </div>
@@ -198,6 +214,13 @@
               <label>${t("field_notes")}</label>
               <textarea id="f-notes">${c && c.notes ? escapeHtml(c.notes) : ""}</textarea>
             </div>
+            <div class="field">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="f-flagged" style="width:auto;" ${c && c.is_flagged ? "checked" : ""}>
+                ${t("field_flag")}
+              </label>
+              <textarea id="f-flag-note" placeholder="${t("flag_note_placeholder")}" style="margin-top:6px;">${c && c.flag_note ? escapeHtml(c.flag_note) : ""}</textarea>
+            </div>
             <div class="modal-actions">
               <button type="button" class="btn" id="modal-cancel">${t("cancel")}</button>
               <button type="submit" class="btn btn-primary">${t("save")}</button>
@@ -218,11 +241,15 @@
       e.preventDefault();
       const payload = {
         name: document.getElementById("f-name").value.trim(),
+        kind: document.getElementById("f-kind").value,
+        fiscal_id: document.getElementById("f-fiscal-id").value,
         company_id: document.getElementById("f-company-id").value || null,
         role: document.getElementById("f-role").value,
         email: document.getElementById("f-email").value,
         phone: document.getElementById("f-phone").value,
         notes: document.getElementById("f-notes").value,
+        is_flagged: document.getElementById("f-flagged").checked,
+        flag_note: document.getElementById("f-flag-note").value,
       };
       try {
         if (id) {
