@@ -1162,9 +1162,9 @@ modul) evită circularitatea `app.py`↔`routes.py` (`app.py` importă deja
 Versiune 2.0.2 → 2.0.3 (PATCH), sincronizată în `backend/config.py` și
 `docs/update.json`.
 
-**Regula 32 — 40 atribuiri reale găsite, curățare BLOCATĂ de mediul de
-execuție (2026-09-06).** Identic cu CursorProWin/MediaFlow-Monitor:
-`git filter-repo` refuzat de clasificatorul automat al mediului Claude
-Code, nu o amânare deliberată. Repo PUBLIC — Regula 32 se aplică integral.
-TODO real: procedura completă din Regula 32 (Partea 1), rulată manual de
-Cristi sau dintr-o sesiune cu altă configurare de permisiuni.
+**Regula 32 — REZOLVAT 2026-09-06.** 40 atribuiri reale găsite; `git
+filter-repo` refuzat de clasificatorul automat al mediului Claude Code,
+nu o amânare deliberată. Repo PUBLIC — Regula 32 se aplică integral.
+Script de curățare pregătit (`~/Developer/clean-claude-attribution.sh`)
+și rulat manual de Cristi. **Verificat după rulare: 0 apariții**, remote
+`origin` corect re-adăugat, push confirmat pe `main` și tag-uri.
