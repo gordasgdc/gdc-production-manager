@@ -12,6 +12,15 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    # [CLAUDE.md Regula 34, 2026-09-06] `secrets` NU e un context permis
+    # direct intr-un `if:` de pas (confirmat cu actionlint, validatorul
+    # real folosit de GitHub - "context 'secrets' is not allowed here") -
+    # workflow-ul intreg esua sa se valideze (0 joburi create), nu doar
+    # pasul respectiv. Fix: valoarea trece printr-un `env:` la nivel de
+    # JOB (aici `secrets` E permis), iar pasii citesc `env.HAS_WIN_SELFSIGN`
+    # (context permis in `if:`). Tipar identic cu CGConvertor (referinta).
+    env:
+      HAS_WIN_SELFSIGN: ${{ secrets.WIN_SELFSIGN_PFX_BASE64 != '' }}
 
     steps:
       - name: Checkout code
@@ -31,6 +40,22 @@ jobs:
         run: |
           pyinstaller build/build-windows.spec --noconfirm
 
+      # [CLAUDE.md Regula 34, 2026-09-06] Semnare Self-Signed, DOAR pentru
+      # testare interna/cerc restrans (NU elimina SmartScreen pentru
+      # publicul larg - vezi codesigning/README-windows.md). Ruleaza DOAR
+      # daca secretele exista (Cristi le incarca o singura data, direct de
+      # pe Windows real - certificatul nu trece niciodata prin conversatia
+      # cu Claude) - altfel build-ul continua NESEMNAT, exact ca inainte,
+      # fara nicio eroare. Certificat COMUN ecosistemului GDC (acelasi
+      # secret in toate repo-urile), implementare de referinta: CGConvertor.
+      - name: Semneaza GDCProductionManager.exe (Self-Signed, test intern)
+        if: ${{ env.HAS_WIN_SELFSIGN == 'true' }}
+        shell: pwsh
+        env:
+          WIN_SELFSIGN_PFX_BASE64: ${{ secrets.WIN_SELFSIGN_PFX_BASE64 }}
+          WIN_SELFSIGN_PFX_PASSWORD: ${{ secrets.WIN_SELFSIGN_PFX_PASSWORD }}
+        run: .\codesigning\sign-windows.ps1 -TargetPath "dist\GDCProductionManager.exe"
+
       - name: Pregateste folderul pentru instalator (exe + ghid PDF)
         run: |
           mkdir dist_release
@@ -44,6 +69,14 @@ jobs:
         # Start Menu + Desktop, dezinstalare nativa prin Apps & Features.
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Semneaza installer-ul final (Self-Signed, test intern)
+        if: ${{ env.HAS_WIN_SELFSIGN == 'true' }}
+        shell: pwsh
+        env:
+          WIN_SELFSIGN_PFX_BASE64: ${{ secrets.WIN_SELFSIGN_PFX_BASE64 }}
+          WIN_SELFSIGN_PFX_PASSWORD: ${{ secrets.WIN_SELFSIGN_PFX_PASSWORD }}
+        run: .\codesigning\sign-windows.ps1 -TargetPath "Output\GDCProductionManagerSetup.exe"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
