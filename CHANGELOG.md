@@ -2,6 +2,13 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## v2.0.3 (2026-09-06) — Ghidul PDF, accesibil direct din pagina de Ajutor
+
+### Added
+- Buton nou „Deschide ghidul (PDF)” în pagina de Ajutor — deschide ghidul
+  complet de utilizare direct, fără să mai cauți fișierul manual în arhiva
+  de instalare.
+
 ## v2.0.2 (2026-09-04) — Ghid corectat + pagină de prezentare curățată
 
 ### Fixed

@@ -1132,3 +1132,39 @@ curăță și `%APPDATA%\GDCProductionManager`. `.github/workflows/build-windows
 actualizat să compileze installer-ul (ISCC, preinstalat pe
 `windows-latest`) și să publice `GDCProductionManagerSetup.exe` — nu mai
 zip-ul brut vechi.
+
+## v2.0.3 (2026-09-06) — Ghidul PDF accesibil direct din pagina de Ajutor
+
+Audit ecosistem (cerut de Cristi): `docs/guides/Instructiuni_Utilizare.pdf`
+(deja unificat, 27 pagini, RO/EN/ES — vezi v2.0.2) exista, dar nimic din
+`help.html` nu-l deschidea efectiv — userul trebuia să-l caute manual în
+arhiva de instalare.
+
+**Fix**: `backend/routes.py` — rută nouă `POST /api/open-guide` (mirror
+exact al `open_folder()` deja existent — `open`/Mac, `os.startfile`/
+Windows), deschide `resource_path("docs", "guides",
+"Instructiuni_Utilizare.pdf")`. `build/build-mac.spec` +
+`build-windows.spec` — `docs/guides/` adăugat în `datas` (NU era
+bundle-uit deloc până acum, deci ruta ar fi eșuat cu 404 în orice build
+real, deși PDF-ul exista pe disc în dev). `help.html` — card nou sub
+„Mai multe resurse”, buton care apelează ruta prin `API.post` (același
+tipar ca „Deschide folderul”). Chei noi `help_pdf_title`/`help_pdf_text`/
+`help_pdf_link` (RO/EN/ES, `translations.js`).
+
+**Verificat REAL**: `resource_path()` testat direct (venv izolat, deps
+din `requirements.txt`) — rezolvă corect calea, fișierul există pe disc.
+Ruta înregistrată corect pe un Flask app de test (`api_bp` montat,
+`/api/open-guide` prezent în `url_map`). Import-ul întârziat
+(`from app import resource_path`, în interiorul funcției, nu la nivel de
+modul) evită circularitatea `app.py`↔`routes.py` (`app.py` importă deja
+`api_bp` din `routes.py` la nivel de modul).
+
+Versiune 2.0.2 → 2.0.3 (PATCH), sincronizată în `backend/config.py` și
+`docs/update.json`.
+
+**Regula 32 — 40 atribuiri reale găsite, curățare BLOCATĂ de mediul de
+execuție (2026-09-06).** Identic cu CursorProWin/MediaFlow-Monitor:
+`git filter-repo` refuzat de clasificatorul automat al mediului Claude
+Code, nu o amânare deliberată. Repo PUBLIC — Regula 32 se aplică integral.
+TODO real: procedura completă din Regula 32 (Partea 1), rulată manual de
+Cristi sau dintr-o sesiune cu altă configurare de permisiuni.

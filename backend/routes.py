@@ -297,6 +297,30 @@ def pick_folder():
         return jsonify({"error": "picker_failed", "detail": str(e)}), 500
 
 
+@api_bp.route("/api/open-guide", methods=["POST"])
+@login_required
+def open_guide():
+    """Opens the bundled user guide PDF in the OS's default viewer -
+    "Deschide ghidul complet (PDF)" button on the Help page. Mirrors
+    open_folder()'s platform split; [2026-09-06] added because the PDF
+    existed but nothing in the app ever opened it."""
+    from app import resource_path
+
+    path = resource_path("docs", "guides", "Instructiuni_Utilizare.pdf")
+    if not os.path.isfile(path):
+        return jsonify({"error": "not_found"}), 404
+    try:
+        if sys.platform == "darwin":
+            subprocess.run(["open", path], timeout=10)
+        elif sys.platform.startswith("win"):
+            os.startfile(path)  # noqa: S606 - fisier local, bundle-uit cu aplicatia
+        else:
+            return jsonify({"error": "unsupported_platform"}), 501
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": "open_failed", "detail": str(e)}), 500
+
+
 @api_bp.route("/api/open-folder", methods=["POST"])
 @login_required
 def open_folder():

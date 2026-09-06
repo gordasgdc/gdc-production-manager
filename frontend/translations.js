@@ -241,6 +241,9 @@ const TRANSLATIONS = {
     help_more_title: "Mai multe resurse",
     help_more_text: "Ghidul complet PDF (instalare, exemple, depanare) e disponibil în arhiva de instalare și pe pagina de prezentare.",
     help_more_link: "Deschide pagina de prezentare ↗",
+    help_pdf_title: "Ghid de utilizare (PDF)",
+    help_pdf_text: "Deschide ghidul complet, cu toate secțiunile — instalare, flux de lucru, licență, depanare.",
+    help_pdf_link: "Deschide ghidul (PDF)",
 
     theme_dark: "Mod întunecat",
     theme_light: "Mod luminos",
@@ -712,6 +715,9 @@ const TRANSLATIONS = {
     help_more_title: "More resources",
     help_more_text: "The complete PDF guide (installation, examples, troubleshooting) is available in the install archive and on the presentation page.",
     help_more_link: "Open the presentation page ↗",
+    help_pdf_title: "User guide (PDF)",
+    help_pdf_text: "Open the complete guide, with every section — installation, workflow, license, troubleshooting.",
+    help_pdf_link: "Open the guide (PDF)",
 
     theme_dark: "Dark mode",
     theme_light: "Light mode",
@@ -1183,6 +1189,9 @@ const TRANSLATIONS = {
     help_more_title: "Más recursos",
     help_more_text: "La guía completa en PDF (instalación, ejemplos, solución de problemas) está disponible en el archivo de instalación y en la página de presentación.",
     help_more_link: "Abrir la página de presentación ↗",
+    help_pdf_title: "Guía de uso (PDF)",
+    help_pdf_text: "Abre la guía completa, con todas las secciones — instalación, flujo de trabajo, licencia, solución de problemas.",
+    help_pdf_link: "Abrir la guía (PDF)",
 
     theme_dark: "Modo oscuro",
     theme_light: "Modo claro",

@@ -18,6 +18,9 @@ a = Analysis(
     binaries=[],
     datas=[
         (os.path.join(ROOT, "frontend"), "frontend"),
+        # [2026-09-06] Ghidul PDF, deschis din help.html (open-guide route) -
+        # nu era bundle-uit deloc, deci nu exista in interiorul aplicatiei.
+        (os.path.join(ROOT, "docs", "guides"), os.path.join("docs", "guides")),
     ],
     hiddenimports=[
         "flask_sqlalchemy",
