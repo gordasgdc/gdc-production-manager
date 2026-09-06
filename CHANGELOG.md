@@ -2,6 +2,11 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## v2.0.4 (2026-09-07) — Semnare Windows (Code Signing) în CI
+
+### Added
+- Infrastructură internă de semnare digitală (self-signed, pentru testare) a executabilului/installer-ului Windows la fiecare build.
+
 ## v2.0.3 (2026-09-06) — Ghidul PDF, accesibil direct din pagina de Ajutor
 
 ### Added
