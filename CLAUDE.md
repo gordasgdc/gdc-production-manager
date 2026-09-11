@@ -1234,3 +1234,16 @@ nu o amânare deliberată. Repo PUBLIC — Regula 32 se aplică integral.
 Script de curățare pregătit (`~/Developer/clean-claude-attribution.sh`)
 și rulat manual de Cristi. **Verificat după rulare: 0 apariții**, remote
 `origin` corect re-adăugat, push confirmat pe `main` și tag-uri.
+
+## Etapa 2026-09-11 — v2.0.4 publicat cu semnare Windows activa
+
+Secretele CI (`WIN_SELFSIGN_PFX_BASE64`/`WIN_SELFSIGN_PFX_PASSWORD`,
+certificat COMUN ecosistemului) erau deja incarcate de Cristi. Acest release
+e primul in care semnarea Regulii 34 chiar a rulat pe un build real.
+
+Verificat direct, nu presupus: pasul de semnare marcat OK in lista de pasi a
+job-ului, plus directorul de securitate din header-ul PE al installer-ului
+descarcat = 7496 bytes de semnatura Authenticode (acelasi certificat +
+timestamp pe toate aplicatiile). Link stabil `releases/latest/download/...`
+verificat HTTP 200.
+
