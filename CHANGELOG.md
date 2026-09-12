@@ -2,6 +2,26 @@
 
 All notable changes to GDC Production Manager are documented here.
 
+## v2.1.0 (2026-09-12) — Gratuit cât timp aplicația e în dezvoltare
+
+### Changed
+- Aplicația e acum **complet gratuită și fără nicio limitare** cât timp e în
+  dezvoltare: nu mai există perioadă de probă care expiră, ecran de activare
+  sau sumă afișată nicăieri (în aplicație, pe pagina de prezentare sau în
+  catalog). Activarea intră în funcțiune abia după anunțul explicit al primei
+  versiuni oficiale.
+- Secțiunea „Licență" din Setări explică acum starea de dezvoltare și
+  invită la sugestii, cu un buton dedicat care trimite mesajul cu versiunea
+  curentă completată automat.
+- Indicatorul din meniul lateral nu mai numără zile de probă — arată că
+  aplicația e în dezvoltare și duce direct spre trimiterea unei sugestii.
+
+### Fixed
+- Butonul de WhatsApp folosea cuvântul „Cumpără"/„Buy"/„Comprar" (RO/EN/ES),
+  contrar formulării standard din ecosistem — reformulat.
+- Numărul de versiune rămăsese blocat la `2.0.2` în installer-ul Windows și în
+  configurația de build Mac, deși aplicația ajunsese la `2.0.4` — sincronizat.
+
 ## v2.0.4 (2026-09-07) — Semnare Windows (Code Signing) în CI
 
 ### Added

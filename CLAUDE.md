@@ -1344,3 +1344,51 @@ descarcat = 7496 bytes de semnatura Authenticode (acelasi certificat +
 timestamp pe toate aplicatiile). Link stabil `releases/latest/download/...`
 verificat HTTP 200.
 
+
+## Etapa 2026-09-12 (v2.1.0) — DECIZIE DE PRODUS: gratuit până la anunțul versiunii oficiale
+
+**Cerință explicită a lui Cristi, de reținut permanent.** Aplicația rămâne
+**gratuită, fără nicio limitare și fără perioadă de probă**, cât timp e în
+dezvoltare. Motivul dat: aplicația „încă nu este concretizată", iar un preț
+afișat pe ceva neterminat nu are atracție și blochează exact feedback-ul care
+trebuie strâns acum de la cei care o descarcă.
+
+**Condiția de ieșire, singura:** prețul și trialul intră în funcțiune DOAR
+când Cristi declară explicit că versiunea e oficială. Nu la o versiune anume,
+nu la o dată, nu automat.
+
+**Cum e implementat (un singur comutator, nu o rescriere):**
+- `backend/license_manager.py` → `PREVIEW_FREE_MODE = True`. Cât e True,
+  `is_unlocked()` întoarce mereu `True`, iar `status()` expune
+  `preview_free: true`. Toată infrastructura de licențiere (Ed25519, trial de
+  25 zile, revocare, `pricing.json`) rămâne INTACTĂ și netestată-de-la-zero —
+  la anunțul versiunii oficiale se schimbă `True` → `False` și revine totul.
+- UI: `frontend/settings.html` ascunde starea de probă, linia de preț și tot
+  blocul de activare (Machine ID + WhatsApp + formular de serial), în locul lor
+  arată explicația + butonul „Trimite o sugestie" (mesaj WhatsApp cu versiunea
+  curentă completată automat). `frontend/script.js` → badge-ul din sidebar nu
+  mai numără zile, arată „În dezvoltare — gratuit".
+- Chei noi RO/EN/ES în `translations.js`: `preview_free_badge`,
+  `preview_free_title`, `preview_free_text`, `preview_free_feedback`,
+  `suggest_btn`.
+- `docs/index.html` (RO/EN/ES): secțiunea de preț devine „În dezvoltare —
+  gratuit", butonul principal trimite o sugestie, nu o donație; textul de
+  licență și meta-descrierea actualizate.
+- `gdc-plugin-manager-catalog-vendor/docs/catalog.json`: intrarea acestei
+  aplicații trece de la `"kind": "trial"` la `"kind": "free"` și i s-a scos
+  `pricingProductID`, ca să nu apară nicio sumă în catalogul GDC Plugin
+  Manager. **Intrarea din `pricing.json` a fost lăsată INTACTĂ** intenționat —
+  la revenirea pe plătit se readaugă `pricingProductID` și prețul e deja
+  acolo, nu trebuie recreat.
+
+**Bug-uri preexistente găsite pe drum și reparate** (Regula 30):
+- Butonul de WhatsApp zicea „Cumpără"/„Buy"/„Comprar" — încălcare directă a
+  Regulii 3 (susținerea se exprimă exclusiv ca donație, niciodată „cumpără").
+  Reformulat în toate cele 3 limbi.
+- `installer.iss` (`MyAppVersion`) și `build/build-mac.spec`
+  (`CFBundleShortVersionString`/`CFBundleVersion`) rămăseseră la `2.0.2` deși
+  aplicația era la `2.0.4` — încălcare a Regulii 14, sincronizate la `2.1.0`.
+
+**Verificat direct, nu presupus:** `is_unlocked()` întoarce `True` pe o
+instalare cu trialul deja aproape epuizat (`trial_days_remaining: 1`) — adică
+gating-ul chiar nu mai blochează, nu doar că textul s-a schimbat.

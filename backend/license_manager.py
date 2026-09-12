@@ -19,6 +19,24 @@ from config import DATA_DIR
 
 TRIAL_DAYS = 25
 
+# ---------------------------------------------------------------------------
+# MOD "PREVIZUALIZARE GRATUITA" (2026-09-12, decizie explicita de produs)
+#
+# Cat timp aceasta constanta e True, aplicatia e COMPLET gratuita si NIMIC nu
+# se blocheaza: fara proba care expira, fara ecran de activare, fara pret
+# afisat nicaieri. Motivul e de pozitionare, nu tehnic: aplicatia e inca in
+# dezvoltare activa, iar un pret afisat pe ceva neconcretizat reduce atractia
+# si, mai important, descurajeaza exact feedback-ul care ne trebuie acum de la
+# cei care o descarca.
+#
+# Trecerea la False (= licentiere reala, proba de TRIAL_DAYS zile + pret) se
+# face DOAR la o declaratie explicita a lui Cristi ca versiunea e oficiala.
+# Nu se reactiveaza automat la o anumita versiune, nu expira dupa o data.
+# Intreaga infrastructura de licentiere de mai jos ramane INTACTA si testata
+# — se schimba un singur flag, nu se rescrie nimic.
+# ---------------------------------------------------------------------------
+PREVIEW_FREE_MODE = True
+
 # Kill-switch diferentiat (decizie 2026-08-24): cate secunde tinem o
 # licenta anterior-valida "activa" cand hardware-ul nu poate fi citit acum
 # (WMI restrictionat, VM, ioreg indisponibil) — suficient cat un client
@@ -106,6 +124,10 @@ def is_licensed() -> bool:
 
 
 def is_unlocked() -> bool:
+    # In modul de previzualizare gratuita nimic nu se blocheaza — vezi
+    # PREVIEW_FREE_MODE de mai sus.
+    if PREVIEW_FREE_MODE:
+        return True
     return is_licensed() or trial_days_remaining() > 0
 
 
@@ -128,7 +150,10 @@ def status() -> dict:
         # explicativ in UI (vezi kill-switch diferentiat din is_licensed()).
         demo_reason = license_validator.check(state["serial"]).reason
     return {
-        "unlocked": licensed or trial_days_remaining() > 0,
+        # `preview_free` spune UI-ului sa nu arate nici proba, nici pretul,
+        # nici formularul de activare — vezi PREVIEW_FREE_MODE.
+        "preview_free": PREVIEW_FREE_MODE,
+        "unlocked": is_unlocked(),
         "licensed": licensed,
         "trial_days_remaining": trial_days_remaining(),
         "machine_id": machine_id.get_machine_id_display(),

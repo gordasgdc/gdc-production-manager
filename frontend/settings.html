@@ -58,8 +58,17 @@
 
       <div class="card settings-section" id="license">
         <h3>${t("settings_license_section")}</h3>
+        <div id="license-preview-free" class="settings-hint" style="display:none; margin-bottom:12px;">
+          <strong>${t("preview_free_title")}</strong><br>
+          ${t("preview_free_text")}<br><br>
+          ${t("preview_free_feedback")}
+          <div style="margin-top:10px;">
+            <a class="btn btn-whatsapp btn-sm" id="settings-suggest-btn" href="#" target="_blank" rel="noopener">${t("suggest_btn")}</a>
+          </div>
+        </div>
         <div id="license-status-line" class="settings-hint" style="margin-bottom:4px;">…</div>
         <div id="license-price-line" class="settings-hint" style="margin-bottom:12px;"></div>
+        <div id="license-activation-block">
         <div class="field">
           <label>${t("machine_id_label")}</label>
           <div class="code-box">
@@ -75,6 +84,7 @@
           </div>
           <button type="submit" class="btn btn-primary">${t("activate_btn")}</button>
         </form>
+        </div>
       </div>
 
       <div class="card settings-section">
@@ -287,10 +297,29 @@
 
   let LAST_LICENSE_STATUS = null;
 
+  async function appVersionForFeedback() {
+    try { return (await API.get("/api/version")).version; } catch (e) { return "?"; }
+  }
+
   async function loadLicenseStatus() {
     try {
       LAST_LICENSE_STATUS = await API.get("/api/license/status");
       document.getElementById("settings-machine-id").textContent = LAST_LICENSE_STATUS.machine_id;
+
+      // Mod "previzualizare gratuita" (backend: PREVIEW_FREE_MODE): nicio
+      // mentiune de proba, pret sau activare - doar invitatia la sugestii.
+      if (LAST_LICENSE_STATUS.preview_free) {
+        document.getElementById("license-preview-free").style.display = "";
+        document.getElementById("license-status-line").style.display = "none";
+        document.getElementById("license-price-line").style.display = "none";
+        document.getElementById("license-activation-block").style.display = "none";
+        const suggestMsg = encodeURIComponent(
+          `Salut! Am o sugestie pentru GDC Production Manager (versiune ${await appVersionForFeedback()}): `
+        );
+        const waNum = ['34', '643', '109', '970'].join('');
+        document.getElementById("settings-suggest-btn").href = `https://wa.me/${waNum}?text=${suggestMsg}`;
+        return;
+      }
 
       // v2.0.0 (Regula 27): pret dinamic din pricing.json, fara
       // recompilare - fail-open pe fallback-ul din pricing_checker.py

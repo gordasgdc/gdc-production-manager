@@ -625,7 +625,16 @@ async function renderLicenseBadge() {
     // below which only shows during trial.
     if (hwidValue) hwidValue.textContent = status.machine_id;
 
-    if (slot && !status.licensed) {
+    // Mod "previzualizare gratuita" (backend: PREVIEW_FREE_MODE): badge-ul
+    // nu mai numara zile de proba - spune ca aplicatia e in dezvoltare si
+    // gratuita, si duce spre sectiunea de sugestii.
+    if (slot && status.preview_free) {
+      slot.innerHTML = `
+        <a href="settings.html#license" class="license-badge" style="text-decoration:none; margin-bottom:10px; justify-content:center;">
+          🛠 ${t("preview_free_badge")}
+        </a>
+      `;
+    } else if (slot && !status.licensed) {
       const warn = status.trial_days_remaining <= 2;
       slot.innerHTML = `
         <a href="settings.html#license" class="license-badge ${warn ? "warn" : ""}" style="text-decoration:none; margin-bottom:10px; justify-content:center;">
